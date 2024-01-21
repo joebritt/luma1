@@ -1209,7 +1209,7 @@ void send_pattern_RAM_sysex( uint8_t banknum ) {
   uint8_t *ram;
   sx_ram_bank_hdr_t *hdr = (sx_ram_bank_hdr_t*)sysex_decode_buf;
 
-  Serial.printf("SysEx send Pattern\n");
+  Serial.printf("SysEx send Pattern RAM\n");
   
   // -- go get it, either from SD bank # or STAGING
 
@@ -1265,8 +1265,10 @@ void send_pattern_RAM_sysex( uint8_t banknum ) {
 void sysex_ram_load( uint8_t *se, int len ) {
   char vname[24];
 
-  Serial.printf("Pattern RAM len: %d\n", len - SYSEX_HEADER_SIZE );
-  Serial.printf("Pattern RAM name: %s\n", (char*)&se[1] );
+  Serial.printf("\n-- Sysex Pattern RAM Load\n");
+
+  Serial.printf("   Pattern RAM len: %d\n", len - SYSEX_HEADER_SIZE );
+  Serial.printf("   Pattern RAM name: %s\n", (char*)&se[1] );
   
   // --- sanity check the name
   
@@ -1286,7 +1288,8 @@ void sysex_ram_load( uint8_t *se, int len ) {
 void sysex_ram_request( uint8_t *se, int len ) {
   sx_ram_bank_hdr_t *hdr = (sx_ram_bank_hdr_t*)se;
 
-  Serial.printf("Pattern RAM request: Bank %02d\n", hdr->bank);
+  Serial.printf("\n-- Sysex Pattern RAM Request\n");
+  Serial.printf("   Bank %02d\n", hdr->bank);
 
   send_pattern_RAM_sysex( hdr->bank );
 }
@@ -1394,15 +1397,19 @@ void sysex_sample_load( uint8_t *se, int len ) {
   char vname[24];
   sx_sample_bank_hdr_t *hdr = (sx_sample_bank_hdr_t*)se;
 
-  Serial.printf("Sample len: %d\n", len - SYSEX_HEADER_SIZE );
-  Serial.printf("Sample name: %s\n", (char*)&se[1] );                 // name is just past cmd byte
+  Serial.printf("\n-- Sysex Sample Load\n");
+
+  Serial.printf("   Sample len: %d\n", len - SYSEX_HEADER_SIZE );
+  Serial.printf("   Sample name: %s\n", (char*)&se[1] );                 // name is just past cmd byte
   
   // sanity check the name
   
-  if( strlen( (char*)&sysex_decode_buf[1] ) == 0 )                    // any string there?
+  if( strlen( (char*)&sysex_decode_buf[1] ) == 0 )                      // any string there?
     snprintf( vname, 24, "NONAME.BIN" );
   else
     snprintf( vname, 24, "%s", (char*)&sysex_decode_buf[1] );
+
+  sysex_load_prologue();                                                                                  // take the bus, pause hihat
 
   if( se[0] == CMD_SAMPLE )                                                                               // legacy cmd 0 sample?                            
     set_voice( last_drum, &sysex_decode_buf[SYSEX_HEADER_SIZE], (len - SYSEX_HEADER_SIZE), vname );       // load into last active drum
@@ -1410,13 +1417,17 @@ void sysex_sample_load( uint8_t *se, int len ) {
     set_voice( drum_sel_2_voice(hdr->drum_sel), 
                   &sysex_decode_buf[SYSEX_HEADER_SIZE], (len - SYSEX_HEADER_SIZE), vname );               // load into selected drum
   }
+
+  sysex_load_epilogue();                                                                                  // release the bus
 }
 
 
 void sysex_sample_request( uint8_t *se, int len ) {
   sx_sample_bank_hdr_t *hdr = (sx_sample_bank_hdr_t*)se;
 
-  Serial.printf("Sample request: Bank %02d, Drum %02d (%s)\n", hdr->bank, hdr->drum_sel, drum_sel_2_name(hdr->drum_sel));
+  Serial.printf("\n-- Sysex Sample Request\n");
+
+  Serial.printf("   Bank %02d, Drum %02d (%s)\n", hdr->bank, hdr->drum_sel, drum_sel_2_name(hdr->drum_sel));
 
   send_sample_sysex( hdr->bank, hdr->drum_sel );
 }
@@ -1503,9 +1514,6 @@ void sysex_load_epilogue() {
   delay(100);
   teensy_drives_z80_bus( false );                     // release the bus
   delay(100);
-
-  process_sysex_state = SYSEX_INITIALIZE;             // done, either success or failure, but get ready for the next one
-  sysex_err_abort = false;
 }
 
 
@@ -1544,7 +1552,7 @@ bool process_sysex_byte( uint8_t b ) {
   bool r = false;
     
   switch( process_sysex_state ) {
-    case SYSEX_INITIALIZE:  sysex_decode_idx = 0;                                  // ensure buffer index is reset
+    case SYSEX_INITIALIZE:  sysex_decode_idx = 0;                               // ensure buffer index is reset
                             sysex_err_abort = false;                            // not in error state
                                                                                 // fall thru to the F0 hunter
     case SYSEX_FIND_F0:     if( b == 0xf0 )
@@ -1552,7 +1560,6 @@ bool process_sysex_byte( uint8_t b ) {
     
     case SYSEX_FIND_MFR_ID: if( b == OUR_MIDI_MFR_ID ) {
                               process_sysex_state = SYSEX_GET_B7S;
-                              sysex_load_prologue();                            // it's for us, get ready
                             }    
                             else
                               process_sysex_state = SYSEX_FIND_F0;        break;
@@ -1581,8 +1588,6 @@ bool process_sysex_byte( uint8_t b ) {
 
     default:                init_sysex_decoder();                         break;
   }
-
-  z80_bus_write( LINK_DISPLAY, hex2bcd[(sysex_decode_idx/1024)] );        // LINK display shows number of Kbytes received
     
   return r;
 }             
@@ -1606,8 +1611,10 @@ bool process_sysex_byte( uint8_t b ) {
 
 void mySystemExclusiveChunk(const byte *d, uint16_t len, bool last) {
 
-  Serial.printf("sysex: %d, last: %d, err: %d\n", len, last, sysex_err_abort );
+  Serial.printf("\n-- Got Sysex: %d bytes, last: %d, err: %d\n", len, last, sysex_err_abort );
 
+  // --- PROCESS EACH BLOCK
+  
   for( int xxx = 0; xxx != len; xxx++ ) {                                                         // walk thru all bytes received in this block
     if( !sysex_err_abort                                                                          // if no errors detected
         && process_sysex_byte( *d++ )                                                             // and we processed thru the last byte
@@ -1615,7 +1622,7 @@ void mySystemExclusiveChunk(const byte *d, uint16_t len, bool last) {
           
       sysex_decode_idx++;                                                                         // add 1 to make index = len
     
-      Serial.printf("### found end after %d bytes\n", sysex_decode_idx );
+      Serial.printf("   Found Sysex end after %d bytes\n", sysex_decode_idx );
 
       switch( sysex_decode_buf[0] ) {
 
@@ -1641,15 +1648,21 @@ void mySystemExclusiveChunk(const byte *d, uint16_t len, bool last) {
 
         case (CMD_UTIL + CMD_REQUEST):          sysex_util_request( sysex_decode_buf, sysex_decode_idx );         break;
       }
-
-      sysex_load_epilogue();
     }
   }
 
-  if( sysex_err_abort && last ) {                                                                   // sysex_err_abort will have stopped the processing
-    Serial.printf("### ERROR receiving sysex\n");                                                   // notify the user, clean up, and give up :-)
+  // --- IF LAST BLOCK AND THERE WAS AN ERROR AT SOME POINT, PLAY ERROR BEEP
+
+  if( sysex_err_abort && last ) {                                                 // sysex_err_abort will have stopped the processing
+    Serial.printf("### ERROR receiving sysex\n");                                 // notify the user, clean up, and give up :-)
     beep_failure();
-    sysex_load_epilogue();
+  }
+
+  // --- RESET STATE AFTER LAST BLOCK FOR NEXT TIME
+  
+  if( last ) {
+    process_sysex_state = SYSEX_INITIALIZE;                                       // done, either success or failure, but get ready for the next one
+    sysex_err_abort = false;
   }
 }
 
@@ -1696,7 +1709,7 @@ int pack_sysex_data( int len, uint8_t *in, uint8_t *out ) {
 
   } while( in_idx < len );
   
-  Serial.printf("\n== %d %d / %d\n\n", len, in_idx, out_idx);
+  Serial.printf("\n== pack_sysex_data: len = %d in = %d / out = %d\n\n", len, in_idx, out_idx);
   
   return out_idx;
 }

@@ -38,12 +38,18 @@ void drum_beep( int freq, int dur ) {           // dur is ms
 
   beeptime = 0;
   
+  teensy_drives_z80_bus( true );                // grab the bus
+  delay( 10 );
+
   while( beeptime < dur ) {
     clr_LED_SET_2( BEEP_OUT );
     delayMicroseconds( per/2 );
     set_LED_SET_2( BEEP_OUT );
     delayMicroseconds( per/2 );
   }
+
+  teensy_drives_z80_bus( false );               // release the bus
+  delay( 10 );
 }
 
 
