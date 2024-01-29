@@ -111,6 +111,7 @@ void myNoteOff(byte channel, byte note, byte velocity);
 void myProgramChange(byte channel, byte pgm);
 void myClock();
 void myStart();
+void myContinue();
 void myStop();
 void mySystemExclusiveChunk(const byte *d, uint16_t len, bool last);
 

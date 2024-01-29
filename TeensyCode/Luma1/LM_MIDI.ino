@@ -171,6 +171,7 @@ void init_midi() {
   
   midiDIN.setHandleClock(           din_myClock           );
   midiDIN.setHandleStart(           din_myStart           );
+  midiDIN.setHandleContinue(        din_myContinue        );
   midiDIN.setHandleStop(            din_myStop            );
   
   midiDIN.setHandleSystemExclusive( din_mySystemExclusiveChunk  );
@@ -192,6 +193,7 @@ void init_midi() {
   
   usbMIDI.setHandleClock(           usb_myClock           );
   usbMIDI.setHandleStart(           usb_myStart           );
+  usbMIDI.setHandleContinue(        usb_myContinue        );
   usbMIDI.setHandleStop(            usb_myStop            );
   
   usbMIDI.setHandleSystemExclusive( usb_mySystemExclusiveChunk  );
@@ -267,6 +269,13 @@ void din_myClock() {
 void din_myStart() {
   if( get_midi_clock_in_route() & ROUTE_DIN5 ) {
     myStart();
+    midi_din_in_event();
+  }
+}
+
+void din_myContinue() {
+  if( get_midi_clock_in_route() & ROUTE_DIN5 ) {
+    myContinue();
     midi_din_in_event();
   }
 }
@@ -412,6 +421,13 @@ void usb_myClock() {
 void usb_myStart() {
   if( get_midi_clock_in_route() & ROUTE_USB ) {
     myStart();
+    midi_usb_in_event();
+  }
+}
+
+void usb_myContinue() {
+  if( get_midi_clock_in_route() & ROUTE_USB ) {
+    myContinue();
     midi_usb_in_event();
   }
 }
@@ -816,6 +832,7 @@ void handle_midi_out() {
      
 */
 
+bool got_midi_start = false;
 
 /* ---------------------------------------------------------------------------------------
     Manage the TAPE_SYNC_MODE_CLK signal
@@ -909,6 +926,8 @@ bool clocktime_sanity_check( uint32_t prev, uint32_t cur ) {
 void myClock() {
   uint32_t lastclocktime = clocktime24;                       // use this to catch single clocktimes that are > sanity check threshold
   uint32_t f;
+
+  //Serial.printf("clk\n");
   
   clocktime24 = sinceLastMIDIClk;
   sinceLastMIDIClk = 0;
@@ -921,8 +940,12 @@ void myClock() {
 
     //Serial.println( f );
 
-    set_tape_sync_clk_freq( f*2 );                            // MIDI clk is 24 PPQN, LM-1 uses 48 PPQN
-    set_tape_sync_clk_run( true );                            // run the clock
+    if( got_midi_start ) {                                    // some sequencers send continuous MIDI Clocks, some bracket with MIDI Start/Stop
+                                                              // --> we use continuous MIDI Clock to update the frequency value,
+                                                              //     but only generate clocks to the LM-1 side when we get a MIDI Start.
+      set_tape_sync_clk_freq( f*2 );                          // MIDI clk is 24 PPQN, LM-1 uses 48 PPQN
+      set_tape_sync_clk_run( true );                          // run the clock
+    }
   }
 }
 
@@ -930,16 +953,32 @@ void myClock() {
 // -- Called when we get a MIDI Start
 
 void myStart() {
-  Serial.println("received MIDI start");
+  Serial.println("received MIDI Start");
   sinceLastMIDIClk = 0;
   clocks = 0;
+
+  got_midi_start = true;
+}
+
+
+// -- Called when we get a MIDI Continue
+
+void myContinue() {
+  Serial.println("received MIDI Continue");
+  sinceLastMIDIClk = 0;
+  clocks = 0;
+
+  got_midi_start = true;                                      // we don't really honor Continue
 }
 
 
 // -- Called when we get a MIDI Stop
 
 void myStop() {
-  Serial.println("received MIDI stop");
+  Serial.println("received MIDI Stop");
+
+  got_midi_start = false;                                     // back to waiting for Start
+
   set_tape_sync_clk_run( false );                             // stop the clock
 }
 
