@@ -1750,5 +1750,5 @@ int pack_sysex_data( int len, uint8_t *in, uint8_t *out ) {
   
   Serial.printf("\n== pack_sysex_data: len = %d in = %d / out = %d\n\n", len, in_idx, out_idx);
   
-  return out_idx;
+  return out_idx+1;
 }
