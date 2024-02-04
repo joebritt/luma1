@@ -86,8 +86,6 @@ void set_eprom_ce( int ce ) {
 }
 
 
-int last_tape_sync_mode;
-
 // Call to set up the interface BEFORE the user has inserted the EPROM
 
 void dump_eprom_prologue() {  
@@ -97,7 +95,6 @@ void dump_eprom_prologue() {
 
   set_eprom_oe( 1 );                                                // make sure /OE = 1
 
-  last_tape_sync_mode = set_tape_sync_mode( TAPE_SYNC_MODE_GPO );   // switch modes for pin used for /CE, remember what it was
   set_eprom_ce( 1 );                                                // make sure /CE = 1                    
 }
 
@@ -176,8 +173,6 @@ void dump_eprom_epilogue() {
   char vname[16];
   
   Serial.println("dump eprom epilogue");
-
-  set_tape_sync_mode( last_tape_sync_mode );                // put it back like it was
 
   restore_LED_SET_2();                                      // D802 back like it was before
 

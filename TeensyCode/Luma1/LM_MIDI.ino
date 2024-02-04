@@ -37,6 +37,11 @@ MIDI_CREATE_INSTANCE(HardwareSerial, HW_MIDI, midiDIN);
 #define TXINV_FORCE               0x10000000        // TXINV bit to set
 
 
+// --- MIDI Clock -> Tempo Clock Pulse generation
+
+void run_tempo_clock();
+
+
 // --- MIDI interface routing
 
 uint8_t midi_note_out_route;      // can be DIN5, USB, or Both
@@ -161,7 +166,7 @@ void init_midi() {
   set_drum_table_entry( drum_COWBELL,     MIDI_NOTE_COWBELL,      STB_COWBELL,      0x01    );
   set_drum_table_entry( drum_CLAVE,       MIDI_NOTE_CLAVE,        STB_CLAVE,        0x01    );
   
-  
+
   // -- DIN-5 old-skool MIDI
 
   midiDIN.setHandleNoteOn(          din_myNoteOn          );
@@ -173,7 +178,7 @@ void init_midi() {
   midiDIN.setHandleStart(           din_myStart           );
   midiDIN.setHandleContinue(        din_myContinue        );
   midiDIN.setHandleStop(            din_myStop            );
-  
+
   midiDIN.setHandleSystemExclusive( din_mySystemExclusiveChunk  );
 
   midiDIN.begin();
@@ -541,6 +546,11 @@ bool midi_usb_in_active() {
 void handle_midi_in() {
   char c;
 
+  // -- see if we need to update the tempo clock pulse generator
+
+  run_tempo_clock();
+
+  
   // -- DIN-5 old-skool MIDI
 
   if( midi_chan == 0 )                // 0 = OMNI
@@ -548,7 +558,11 @@ void handle_midi_in() {
   else
     midiDIN.read( midi_chan );
 
+  // -- see if we need to update the tempo clock pulse generator
 
+  run_tempo_clock();
+
+  
   // -- modern USB hotness MIDI
  
   if( midi_chan == 0 )                // 0 = OMNI
@@ -556,6 +570,10 @@ void handle_midi_in() {
   else
     usbMIDI.read( midi_chan );
 
+
+  // -- see if we need to update the tempo clock pulse generator
+
+  run_tempo_clock();
 }
 
 
@@ -838,63 +856,17 @@ bool got_midi_start = false;
     Manage the TAPE_SYNC_MODE_CLK signal
 
     This gets used by the MIDI clock code AND the EPROM dumping code.
+    
     These routines manage the mode of the TAPE_SYNC_MODE_CLK pin.
-*/
 
-int decoded_tape_sync_mode = TAPE_SYNC_MODE_CLK;
-uint32_t decoded_tape_sync_freq = 0;
-
-
-/*  we do this becuase the DECODED_TAPE_SYNC_CLK signal is used for 2 things:
+    We do this becuase the DECODED_TAPE_SYNC_CLK signal is used for 2 things:
 
       - General Purpose Output to drive /CE on EPROM socket for EPROM dumping
       - Clock to LM-1 firmware to simulate Tape Sync Clock
 */
 
-
-int set_tape_sync_mode( int mode ) {
-  int curmode = decoded_tape_sync_mode;
-
-  pinMode( DECODED_TAPE_SYNC_CLK, OUTPUT );                                                                   // always an output, either mode
-  
-  switch( mode ) {
-    case TAPE_SYNC_MODE_CLK:      analogWriteFrequency( DECODED_TAPE_SYNC_CLK, decoded_tape_sync_freq );      // last requested clk freq
-                                  analogWrite( DECODED_TAPE_SYNC_CLK, 0 );                                    // off
-                                  break;
-
-    case TAPE_SYNC_MODE_GPO:      analogWrite( DECODED_TAPE_SYNC_CLK, 0 );
-                                  digitalWrite( DECODED_TAPE_SYNC_CLK, 1 );                                   // default to hi
-                                  break;
-  }
-
-  decoded_tape_sync_mode = mode;
-  
-  return curmode;
-}
-
-
-void set_tape_sync_clk_freq( uint32_t freq ) {
-  decoded_tape_sync_freq = freq;                                                    // remember last requested freq, even if not in CLK mode
-  
-  if( decoded_tape_sync_mode == TAPE_SYNC_MODE_CLK )                                // if we are in CLK mode...
-    analogWriteFrequency( DECODED_TAPE_SYNC_CLK, decoded_tape_sync_freq );
-  else
-    Serial.println("*** Requested set_tape_sync_clk_run when not in CLK mode");
-}
-
-void set_tape_sync_clk_run( bool en ) {
-  if( decoded_tape_sync_mode == TAPE_SYNC_MODE_CLK )                                // if we are in CLK mode...
-    analogWrite( DECODED_TAPE_SYNC_CLK, en ? 128 : 0 );                             // ...if we are running set to 128 -> 50% duty cycle
-  else
-    Serial.println("*** Requested set_tape_sync_clk_run when not in CLK mode");
-}
-
-
 void set_tape_sync_clk_gpo( bool state ) {
-  if( decoded_tape_sync_mode == TAPE_SYNC_MODE_GPO )
-    digitalWrite( DECODED_TAPE_SYNC_CLK, state );
-  else
-    Serial.println("*** Requested set_tape_sync_clk_gpo when not in GPO mode");
+  digitalWriteFast( DECODED_TAPE_SYNC_CLK, state );
 }
 
 
@@ -903,10 +875,64 @@ void set_tape_sync_clk_gpo( bool state ) {
     MIDI Clock time calculation
 */
 
-int clocks;
-uint32_t clocktime24;
+uint32_t tc_interp_time;
 
 elapsedMicros sinceLastMIDIClk;                               // use this to keep track of time since previous MIDI clk
+
+elapsedMicros nextTempoClockEdge;                             // time in the future we need to generate the next edge
+
+
+#define TC_PULSE_TIME         3800                            // tempo clock pulse width, in uS
+                                                              // NOTE: THIS WAS CHOSEN CAREFULLY. 
+                                                              //       LM-1 max tempo is around 160 bpm, this is limited by the Z-80 processing time.
+                                                              //       At 160 bpm, 1 beat = 375ms. 24 MIDI Clocks / beat --> 375ms/beat / 24clocks/beat = 15.625 ms/clock.
+                                                              //       We have to generate another clock in between each MIDI Clock, since the LM-1 expects 48 clocks/beat.
+                                                              //       So we will get to 15.625ms / 2 --> 7.8125 ms/clock. 
+                                                              //       There is a high and low part to each clock. 7.8125 ms/clock / 2 = 3.9 ms high, 3.9 ms low.
+                                                              //       3.8ms is the shortest pulse time I see on my LM-1, so I use that here. 
+                                                              //       This is fat enough for the Z-80 to catch.
+
+#define TC_GEN_IDLE           0                               // no tempo clock pulse, drive line low
+#define TC_GEN_MIDI_CLK_HI    1                               // got an 0xf8 MIDI clk, drive high, set up time to drive back low
+#define TC_GEN_MIDI_CLK_LO    2                               // check for time to drive it back low, and set up for 48PPQN interpolated clock pulse
+#define TC_GEN_48_CLK_HI      3                               // check for time to drive interpolated 48PPQN clock hi, sets up time to drive low
+#define TC_GEN_48_CLK_LO      4                               // check for time to drive interpolated 48PPQN clock lo, go back to waiting for MIDI CLK
+
+int tc_gen_state = TC_GEN_IDLE;
+
+void run_tempo_clock() {
+
+  switch( tc_gen_state ) {
+    case TC_GEN_IDLE:         set_tape_sync_clk_gpo( false );                   // we get out of this state when a MIDI clk is received
+                              break;
+
+    
+    case TC_GEN_MIDI_CLK_HI:  set_tape_sync_clk_gpo( true );                    // got a MIDI clk, drive the clock line hi
+                              nextTempoClockEdge = 0;                           // init timer to detect when to drop the clock line
+                              tc_gen_state = TC_GEN_MIDI_CLK_LO;
+                              break;
+    
+    case TC_GEN_MIDI_CLK_LO:  if( nextTempoClockEdge >= TC_PULSE_TIME ) {       // time to drop it?
+                                set_tape_sync_clk_gpo( false );                 // tempo clock = 0
+                                tc_gen_state = TC_GEN_48_CLK_HI;                // go generate the interpolated 48ppqn clock pulse
+                              }
+                              break;
+
+    
+    case TC_GEN_48_CLK_HI:    if( sinceLastMIDIClk >= tc_interp_time ) {        // time to make the fake tempo clock pulse?
+                                set_tape_sync_clk_gpo( true );                  // yep, drive the clock line hi
+                                nextTempoClockEdge = 0;                         // init timer to detect when to drop the clock line
+                                tc_gen_state = TC_GEN_48_CLK_LO;
+                              }
+                              break;
+                              
+    case TC_GEN_48_CLK_LO:    if( nextTempoClockEdge >= TC_PULSE_TIME ) {       // time to drop it?
+                                set_tape_sync_clk_gpo( false );                 // drop it like it's hot
+                                tc_gen_state = TC_GEN_IDLE;                     // done-zo for this MIDI clock pulse + interpolated clock pulse
+                              }
+                              break;
+  }
+}
 
 
 // look for new times that are +/- 10% of the previous
@@ -924,28 +950,13 @@ bool clocktime_sanity_check( uint32_t prev, uint32_t cur ) {
 // -- Called when we get a MIDI Clock
 
 void myClock() {
-  uint32_t lastclocktime = clocktime24;                       // use this to catch single clocktimes that are > sanity check threshold
-  uint32_t f;
 
-  //Serial.printf("clk\n");
-  
-  clocktime24 = sinceLastMIDIClk;
+  tc_interp_time = sinceLastMIDIClk / 2;                      // look at time since previous MIDI clk to get period, /2 for midpoint
   sinceLastMIDIClk = 0;
-
-  if( clocktime_sanity_check( lastclocktime, clocktime24 ) ) {
-    //Serial.print( clocktime24 ); Serial.print(" - ");
-
-    f = clocktime24 / 10;                                     // time is in microseconds, chop it down 1 digit
-    f = 100000 / f;                                           // this is really like a fixed-point 1/x
-
-    //Serial.println( f );
-
-    if( got_midi_start ) {                                    // some sequencers send continuous MIDI Clocks, some bracket with MIDI Start/Stop
-                                                              // --> we use continuous MIDI Clock to update the frequency value,
-                                                              //     but only generate clocks to the LM-1 side when we get a MIDI Start.
-      set_tape_sync_clk_freq( f*2 );                          // MIDI clk is 24 PPQN, LM-1 uses 48 PPQN
-      set_tape_sync_clk_run( true );                          // run the clock
-    }
+  
+  if( got_midi_start ) {
+    tc_gen_state = TC_GEN_MIDI_CLK_HI;
+    run_tempo_clock();
   }
 }
 
@@ -954,8 +965,8 @@ void myClock() {
 
 void myStart() {
   Serial.println("received MIDI Start");
+
   sinceLastMIDIClk = 0;
-  clocks = 0;
 
   got_midi_start = true;
 }
@@ -965,8 +976,8 @@ void myStart() {
 
 void myContinue() {
   Serial.println("received MIDI Continue");
+
   sinceLastMIDIClk = 0;
-  clocks = 0;
 
   got_midi_start = true;                                      // we don't really honor Continue
 }
@@ -979,7 +990,7 @@ void myStop() {
 
   got_midi_start = false;                                     // back to waiting for Start
 
-  set_tape_sync_clk_run( false );                             // stop the clock
+  tc_gen_state = TC_GEN_IDLE;                                 // stop the tempo clock pulses
 }
 
 

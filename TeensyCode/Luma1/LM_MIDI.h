@@ -118,15 +118,7 @@ void mySystemExclusiveChunk(const byte *d, uint16_t len, bool last);
 
 // manage the TAPE_SYNC_CLK signal
 
-#define TAPE_SYNC_MODE_CLK      0
-#define TAPE_SYNC_MODE_GPO      1
-
-int set_tape_sync_mode( int mode );
-
-void set_tape_sync_clk_freq( uint32_t freq );
-void set_tape_sync_clk_run( bool en );              // ignored if not in TAPE_SYNC_MODE_CLK
-
-void set_tape_sync_clk_gpo( bool state );           // only call after enabling TAPE_SYNC_MODE_GPO
+void set_tape_sync_clk_gpo( bool state );           // drive it hi or lo
 
 
 // clock work

@@ -51,7 +51,7 @@
 */
 
 #define   LUMA1_FW_VERSION_MAJOR    0
-#define   LUMA1_FW_VERSION_MINOR    921
+#define   LUMA1_FW_VERSION_MINOR    922
 
 char serial_number[9];                              // we terminate with 0 so we can use it as a string
 
@@ -100,7 +100,8 @@ void startup_middle_hook(void) {
 
   pinMode( TAPE_FSK_TTL, INPUT );                   // TTL version of what LM-1 drives to the SYNC OUT jack when playing/recording
 
-  set_tape_sync_mode( TAPE_SYNC_MODE_CLK );         // drives what was TAPE SYNC clock, now MIDI clock
+  pinMode( DECODED_TAPE_SYNC_CLK, OUTPUT );         // Tempo clock generated from MIDI clock, replaces LM-1 Tape Sync input.
+                                                    // Shared with EPROM dumping code.
 
   // ===============================
   // Force millis() to be 300 to skip startup delays
@@ -216,17 +217,26 @@ void loop_time_critical() {
 }
 
 
-void loop() {
+void loop() {                                       // much effort is put into making sure we receive and process MIDI messages quickly, so nothing should block.
+                                                    // --> and we call loop_time_critical() very frequently, as this processes incoming and outgoing MIDI
+    loop_time_critical();
 
-  loop_time_critical();
-  
   // -- Local UI -- loading voices, setting MIDI channel, saving/loading RAM, etc.
 
-  handle_local_ui();                                // Teensy-driven UI when STORE button pressed  
+  handle_local_ui();                                // Teensy-driven UI when STORE button pressed
+                                                    // --> NOTE! Z-80 code masks this button while PLAYing, so it returns quicky in that case.
+
+    loop_time_critical();
 
   handle_oled_display();                            // if i2c OLED display fitted, update it
+                                                    // --> NOTE! This calls loop_time_critical() while blitting to the display
+
+    loop_time_critical();
 
   handle_debug_commands();                          // commands over the USB serial port
+                                                    // --> NOTE! This returns quickly if no serial commands received
+
+    loop_time_critical();
 
   // -- Things to do only if NOT in local ui mode
   
@@ -234,6 +244,7 @@ void loop() {
     
     // -- Fan
     
-    handle_fan();
+    handle_fan();                                   // this only takes action (temp measurement, fan control) if Luma is NOT playing.
+                                                    // --> we detect if Luma is playing passively, by looking at whether the tempo clock is running.
   }  
 }
