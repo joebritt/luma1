@@ -544,7 +544,6 @@ bool midi_usb_in_active() {
 */
 
 void handle_midi_in() {
-  char c;
 
   // -- see if we need to update the tempo clock pulse generator
 
@@ -678,19 +677,19 @@ void check_NOF_times() {
 
 char *drum_name( int idx, byte vel ) {
   switch( idx ) {
-                  case drum_BASS:       if(vel>MIDI_VEL_SOFT) return "BASS";    else return "bass";     break;
-                  case drum_SNARE:      if(vel>MIDI_VEL_SOFT) return "SNARE";   else return "snare";    break;
-                  case drum_HIHAT:      if(vel>MIDI_VEL_SOFT) return "HIHAT";   else return "hihat";    break;
-                  case drum_HIHAT_OPEN: return "HIHAT OPEN";                                            break;
-                  case drum_CLAPS:      return "CLAPS";                                                 break;
-                  case drum_CABASA:     if(vel>MIDI_VEL_SOFT) return "CABASA";  else return "cabasa";   break;
-                  case drum_TAMB:       if(vel>MIDI_VEL_SOFT) return "TAMB";    else return "tamb";     break;
-                  case drum_TOM_UP:     return "TOM ^";                                                 break;    
-                  case drum_TOM_DN:     return "TOM v";                                                 break;
-                  case drum_CONGA_UP:   return "CONGA ^";                                               break;
-                  case drum_CONGA_DN:   return "CONGA v";                                               break;
-                  case drum_COWBELL:    return "COWBELL";                                               break;
-                  case drum_CLAVE:      return "RIMSHOT";                                               break;          
+                  case drum_BASS:       if(vel>MIDI_VEL_SOFT) return (char*)"BASS";    else return (char*)"bass";     break;
+                  case drum_SNARE:      if(vel>MIDI_VEL_SOFT) return (char*)"SNARE";   else return (char*)"snare";    break;
+                  case drum_HIHAT:      if(vel>MIDI_VEL_SOFT) return (char*)"HIHAT";   else return (char*)"hihat";    break;
+                  case drum_HIHAT_OPEN: return (char*)"HIHAT OPEN";                                                   break;
+                  case drum_CLAPS:      return (char*)"CLAPS";                                                        break;
+                  case drum_CABASA:     if(vel>MIDI_VEL_SOFT) return (char*)"CABASA";  else return (char*)"cabasa";   break;
+                  case drum_TAMB:       if(vel>MIDI_VEL_SOFT) return (char*)"TAMB";    else return (char*)"tamb";     break;
+                  case drum_TOM_UP:     return (char*)"TOM ^";                                                        break;    
+                  case drum_TOM_DN:     return (char*)"TOM v";                                                        break;
+                  case drum_CONGA_UP:   return (char*)"CONGA ^";                                                      break;
+                  case drum_CONGA_DN:   return (char*)"CONGA v";                                                      break;
+                  case drum_COWBELL:    return (char*)"COWBELL";                                                      break;
+                  case drum_CLAVE:      return (char*)"RIMSHOT";                                                      break;          
   }
 }
 
@@ -963,12 +962,18 @@ void myClock() {
 
 // -- Called when we get a MIDI Start
 
+#define FOOTSWITCH_TIME     2000
+
 void myStart() {
   Serial.println("received MIDI Start");
 
   sinceLastMIDIClk = 0;
 
   got_midi_start = true;
+
+  z80_patch_footswitch( true );
+  delayMicroseconds( FOOTSWITCH_TIME );
+  z80_patch_footswitch( false );
 }
 
 
@@ -980,6 +985,10 @@ void myContinue() {
   sinceLastMIDIClk = 0;
 
   got_midi_start = true;                                      // we don't really honor Continue
+
+  z80_patch_footswitch( true );
+  delayMicroseconds( FOOTSWITCH_TIME );
+  z80_patch_footswitch( false );
 }
 
 
@@ -991,7 +1000,14 @@ void myStop() {
   got_midi_start = false;                                     // back to waiting for Start
 
   tc_gen_state = TC_GEN_IDLE;                                 // stop the tempo clock pulses
+
+  set_tape_sync_clk_gpo( true );
+
+  z80_patch_footswitch( true );
+  delayMicroseconds( FOOTSWITCH_TIME );
+  z80_patch_footswitch( false );
 }
+
 
 
 
@@ -1369,18 +1385,18 @@ uint16_t drum_sel_2_voice( uint8_t drum_sel ) {
 
 char *drum_sel_2_name( uint8_t drum_sel ) {
   switch( drum_sel ) {
-    case DRUM_SEL_BASS:     return "BASS";
-    case DRUM_SEL_SNARE:    return "SNARE";
-    case DRUM_SEL_HIHAT:    return "HIHAT";
-    case DRUM_SEL_CLAPS:    return "CLAPS";
-    case DRUM_SEL_CABASA:   return "CABASA";
-    case DRUM_SEL_TAMB:     return "TAMB";
-    case DRUM_SEL_TOM:      return "TOMS";
-    case DRUM_SEL_CONGA:    return "CONGAS";
-    case DRUM_SEL_COWBELL:  return "COWBELL";
-    case DRUM_SEL_CLAVE:    return "CLAVE/RIMSHOT";
-    case 0xff:              return "- LAST DRUM -";     // last active drum
-    default:                return "* ERROR *";         // error, should not happen
+    case DRUM_SEL_BASS:     return (char*)"BASS";
+    case DRUM_SEL_SNARE:    return (char*)"SNARE";
+    case DRUM_SEL_HIHAT:    return (char*)"HIHAT";
+    case DRUM_SEL_CLAPS:    return (char*)"CLAPS";
+    case DRUM_SEL_CABASA:   return (char*)"CABASA";
+    case DRUM_SEL_TAMB:     return (char*)"TAMB";
+    case DRUM_SEL_TOM:      return (char*)"TOMS";
+    case DRUM_SEL_CONGA:    return (char*)"CONGAS";
+    case DRUM_SEL_COWBELL:  return (char*)"COWBELL";
+    case DRUM_SEL_CLAVE:    return (char*)"CLAVE/RIMSHOT";
+    case 0xff:              return (char*)"- LAST DRUM -";     // last active drum
+    default:                return (char*)"* ERROR *";         // error, should not happen
   }
 }
 

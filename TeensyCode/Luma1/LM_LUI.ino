@@ -140,30 +140,30 @@ char *lui_cmd_desc;
 
 char *lui_actions( uint8_t cmd ) {
   switch( cmd ) {
-    case 0x00:  return "Load Voices";
-    case 0x01:  return "Store Voices";
-    case 0x02:  return "Load Patterns";
-    case 0x03:  return "Store Patterns";
-    case 0x10:  return "Copy Voice";
-    case 0x11:  return "Reverse Voice";
-    case 0x55:  return "EPROM Dump";
-    case 0x66:  return "Fan Control";
-    case 0x70:  return "Send Sample";
-    case 0x71:  return "Send Sample Bank";    
-    case 0x72:  return "Send Patterns";
-    case 0x73:  return "Send Patt Bank";
-    case 0x80:  return "MIDI Channel";
-    case 0x81:  return "MIDI Notes OUT";
-    case 0x82:  return "MIDI Notes IN";
-    case 0x83:  return "MIDI Clock OUT";
-    case 0x84:  return "MIDI Clock IN";
-    case 0x85:  return "MIDI SysEx";
-    case 0x90:  return "Boot Screen";
-    case 0x97:  return "SD Dir";
-    case 0x98:  return "Format SD";
-    case 0x99:  return "Reboot";
+    case 0x00:  return (char*)"Load Voices";
+    case 0x01:  return (char*)"Store Voices";
+    case 0x02:  return (char*)"Load Patterns";
+    case 0x03:  return (char*)"Store Patterns";
+    case 0x10:  return (char*)"Copy Voice";
+    case 0x11:  return (char*)"Reverse Voice";
+    case 0x55:  return (char*)"EPROM Dump";
+    case 0x66:  return (char*)"Fan Control";
+    case 0x70:  return (char*)"Send Sample";
+    case 0x71:  return (char*)"Send Sample Bank";    
+    case 0x72:  return (char*)"Send Patterns";
+    case 0x73:  return (char*)"Send Patt Bank";
+    case 0x80:  return (char*)"MIDI Channel";
+    case 0x81:  return (char*)"MIDI Notes OUT";
+    case 0x82:  return (char*)"MIDI Notes IN";
+    case 0x83:  return (char*)"MIDI Clock OUT";
+    case 0x84:  return (char*)"MIDI Clock IN";
+    case 0x85:  return (char*)"MIDI SysEx";
+    case 0x90:  return (char*)"Boot Screen";
+    case 0x97:  return (char*)"SD Dir";
+    case 0x98:  return (char*)"Format SD";
+    case 0x99:  return (char*)"Reboot";
 
-    default:    return "Unused";
+    default:    return (char*)"Unused";
   }
 }
 
@@ -171,11 +171,11 @@ char *lui_actions( uint8_t cmd ) {
 
 char *lui_infos( uint8_t cmd ) {
   switch( cmd ) {
-    case 0x00:  return "Drum Bitmap";
-    case 0x01:  return "Versions";
-    case 0x02:  return "Bank Name";
+    case 0x00:  return (char*)"Drum Bitmap";
+    case 0x01:  return (char*)"Versions";
+    case 0x02:  return (char*)"Bank Name";
 
-    default:    return "Unused";
+    default:    return (char*)"Unused";
   }
 }
 
@@ -274,104 +274,104 @@ uint8_t prev_valid_val( uint8_t c ) {
 char *lui_val_info( uint8_t cmd, uint8_t val, bool val_is_valid ) {
   switch( cmd ) {
     case 00:  if( val_is_valid ) show_top_banner( voice_bank_name( val ) );
-              return "Load Bank #";
+              return (char*)"Load Bank #";
               break;
     
     case 01:  if( val_is_valid ) show_top_banner( voice_bank_name( val ) );
-              return "Store Bank #";
+              return (char*)"Store Bank #";
               break;
     
     case 02:  if( val_is_valid ) show_top_banner( pattern_bank_name( val ) );
-              return "Load Patterns #";
+              return (char*)"Load Patterns #";
               break;
     
     case 03:  if( val_is_valid ) show_top_banner( pattern_bank_name( val ) );
-              return "Store Patterns #";
+              return (char*)"Store Patterns #";
               break;
     
-    case 55:  show_top_banner( "Select EPROM Type" );
+    case 55:  show_top_banner( (char*)"Select EPROM Type" );
               return handle_val_eprom_size( val, val_is_valid );
               break;
               
-    case 66:  show_top_banner( "Choose Fan Mode" );
+    case 66:  show_top_banner( (char*)"Choose Fan Mode" );
               if( val_is_valid ) {
                 switch( val ) {
-                  case 00:  return "AUTO";
-                  case 01:  return "ON";
-                  case 02:  return "OFF";
+                  case 00:  return (char*)"AUTO";
+                  case 01:  return (char*)"ON";
+                  case 02:  return (char*)"OFF";
                 }
               }
               break;
 
     case 71:  if( val_is_valid ) show_top_banner( voice_bank_name( val ) );
-              return "Send Voice Bank";
+              return (char*)"Send Voice Bank";
               break;
               
     case 73:  if( val_is_valid ) show_top_banner( pattern_bank_name( val ) );
-              return "Send Patt Bank";
+              return (char*)"Send Patt Bank";
               break;
     
-    case 80:  show_top_banner( "Choose MIDI Channel" );
-              return "00 is OMNI";
+    case 80:  show_top_banner( (char*)"Choose MIDI Channel" );
+              return (char*)"00 is OMNI";
               break;
 
-    case 81:  show_top_banner( "MIDI Notes OUT" );
+    case 81:  show_top_banner( (char*)"MIDI Notes OUT" );
               if( val_is_valid ) {
                 switch( val ) {
-                  case 00:  return "DIN-5";
-                  case 01:  return "USB";
-                  case 02:  return "DIN-5 & USB";
+                  case 00:  return (char*)"DIN-5";
+                  case 01:  return (char*)"USB";
+                  case 02:  return (char*)"DIN-5 & USB";
                 }
               }
               break;
 
-    case 82:  show_top_banner( "MIDI Notes IN" );
+    case 82:  show_top_banner( (char*)"MIDI Notes IN" );
               if( val_is_valid ) {
                 switch( val ) {
-                  case 00:  return "DIN-5";
-                  case 01:  return "USB";
-                  case 02:  return "DIN-5 & USB";
+                  case 00:  return (char*)"DIN-5";
+                  case 01:  return (char*)"USB";
+                  case 02:  return (char*)"DIN-5 & USB";
                 }
               }
               break;
 
-    case 83:  show_top_banner( "MIDI Clock OUT" );
+    case 83:  show_top_banner( (char*)"MIDI Clock OUT" );
               if( val_is_valid ) {
                 switch( val ) {
-                  case 00:  return "DIN-5";
-                  case 01:  return "USB";
-                  case 02:  return "DIN-5 & USB";
+                  case 00:  return (char*)"DIN-5";
+                  case 01:  return (char*)"USB";
+                  case 02:  return (char*)"DIN-5 & USB";
                 }
               }
               break;
 
-    case 84:  show_top_banner( "MIDI Clock IN " );
+    case 84:  show_top_banner( (char*)"MIDI Clock IN " );
               if( val_is_valid ) {
                 switch( val ) {
-                  case 00:  return "DIN-5";
-                  case 01:  return "USB";
+                  case 00:  return (char*)"DIN-5";
+                  case 01:  return (char*)"USB";
                 }
               }
               break;
 
-    case 85:  show_top_banner( "MIDI Sysex " );
+    case 85:  show_top_banner( (char*)"MIDI Sysex " );
               if( val_is_valid ) {
                 switch( val ) {
-                  case 00:  return "DIN-5";
-                  case 01:  return "USB";
+                  case 00:  return (char*)"DIN-5";
+                  case 01:  return (char*)"USB";
                 }
               }
               break;
               
-    case 90:  show_top_banner( "Choose Boot Screen" );
-              return "Screen";
+    case 90:  show_top_banner( (char*)"Choose Boot Screen" );
+              return (char*)"Screen";
               break;
 
     default:    Serial.println( cmd, HEX );
-                return "Unused";
+                return (char*)"Unused";
   }
 
-  return "";
+  return (char*)"";
 }
 
 
@@ -440,13 +440,13 @@ bool draw_lui_display() {
                                               break;
 
                                 default:      
-                                              show_top_banner( "Enter 2-digit Command" );
+                                              show_top_banner( (char*)"Enter 2-digit Command" );
                                 
                                               if( oled_show_2digits() ){
                                                 show_beside_2digits( lui_actions( entered_num ) );
                                               }
                   
-                                              show_bottom_banner( "Use     for help" );
+                                              show_bottom_banner( (char*)"Use     for help" );
                                               display.fillTriangle( 35, 63, 35, 59, 42, 61, 1 );
                                               display.drawLine( 25, 61, 35, 61, 1 );
                                               break;
@@ -456,7 +456,7 @@ bool draw_lui_display() {
       case LUI_GET_VAL:  
                               show_beside_2digits( lui_val_info( cmd, entered_num, oled_show_2digits()) );
   
-                              show_bottom_banner( "Use     for help" );
+                              show_bottom_banner( (char*)"Use     for help" );
                               display.fillTriangle( 35, 63, 35, 59, 42, 61, 1 );
                               display.drawLine( 25, 61, 35, 61, 1 );
                               break;  
@@ -581,7 +581,7 @@ void flashrate_bottom( int rate ) { if( flashrate_b != (rate*2) ){ flashrate_b =
 
 void draw_idle_display() {
   if( luma_is_playing() == false ) {
-    show_top_banner("Awaiting Tempo Clock");
+    show_top_banner((char*)"Awaiting Tempo Clock");
   }
 }
 
@@ -604,7 +604,6 @@ void input_digits_init_preload( uint8_t val ) {       // init with a known/curre
 
 
 uint8_t input_digits( uint8_t keycode, uint8_t *digits ) {
-  uint8_t c;
   uint8_t retval = INPUT_DIGITS_PENDING;
 
   if( cursor_blink_cnt > CURSOR_BLINK_RATE ) {

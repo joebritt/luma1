@@ -124,12 +124,12 @@ uint8_t load_midi_route_common( char *s, int a ) {
 
 // --- NOTE OUT
 
-void eeprom_save_midi_note_out_route( uint8_t m )   {   save_midi_route_common( "MIDI Note OUT routing", LM_EEPROM_MIDI_NO_OUT,   m, MIDI_ROUTE_VALID_FLAG );         }
+void eeprom_save_midi_note_out_route( uint8_t m )   {   save_midi_route_common( (char*)"MIDI Note OUT routing", LM_EEPROM_MIDI_NO_OUT,   m, MIDI_ROUTE_VALID_FLAG );         }
   
 uint8_t eeprom_load_midi_note_out_route() {
   uint8_t r;
 
-  r = load_midi_route_common( "MIDI Note OUT routing", LM_EEPROM_MIDI_NO_OUT );
+  r = load_midi_route_common( (char*)"MIDI Note OUT routing", LM_EEPROM_MIDI_NO_OUT );
 
   if( (r & MIDI_ROUTE_VALID_MASK) != MIDI_ROUTE_VALID_FLAG ) {
     Serial.printf( "Invalid route, using DIN5 & USB\n" );
@@ -143,12 +143,12 @@ uint8_t eeprom_load_midi_note_out_route() {
 
  // --- NOTE IN 
  
-void eeprom_save_midi_note_in_route( uint8_t m )    {   save_midi_route_common( "MIDI Note IN routing", LM_EEPROM_MIDI_NO_IN,     m, MIDI_ROUTE_VALID_FLAG );         }
+void eeprom_save_midi_note_in_route( uint8_t m )    {   save_midi_route_common( (char*)"MIDI Note IN routing", LM_EEPROM_MIDI_NO_IN,     m, MIDI_ROUTE_VALID_FLAG );         }
 
 uint8_t eeprom_load_midi_note_in_route() {
   uint8_t r;
 
-  r = load_midi_route_common( "MIDI Note IN routing", LM_EEPROM_MIDI_NO_IN );
+  r = load_midi_route_common( (char*)"MIDI Note IN routing", LM_EEPROM_MIDI_NO_IN );
 
   if( (r & MIDI_ROUTE_VALID_MASK) != MIDI_ROUTE_VALID_FLAG ) {
     Serial.printf( "Invalid route, using DIN5 & USB\n" );
@@ -163,12 +163,12 @@ uint8_t eeprom_load_midi_note_in_route() {
 
 // --- CLOCK OUT
 
-void eeprom_save_midi_clock_out_route( uint8_t m )  {   save_midi_route_common( "MIDI Clock OUT routing", LM_EEPROM_MIDI_CL_OUT,  m, MIDI_ROUTE_VALID_FLAG );         }
+void eeprom_save_midi_clock_out_route( uint8_t m )  {   save_midi_route_common( (char*)"MIDI Clock OUT routing", LM_EEPROM_MIDI_CL_OUT,  m, MIDI_ROUTE_VALID_FLAG );         }
 
 uint8_t eeprom_load_midi_clock_out_route() {
   uint8_t r;
 
-  r = load_midi_route_common( "MIDI Clock OUT routing", LM_EEPROM_MIDI_CL_OUT );
+  r = load_midi_route_common( (char*)"MIDI Clock OUT routing", LM_EEPROM_MIDI_CL_OUT );
 
   if( (r & MIDI_ROUTE_VALID_MASK) != MIDI_ROUTE_VALID_FLAG ) {
     Serial.printf( "Invalid route, using DIN5 & USB\n" );
@@ -182,12 +182,12 @@ uint8_t eeprom_load_midi_clock_out_route() {
 
 // --- CLOCK IN
 
-void eeprom_save_midi_clock_in_route( uint8_t m )   {   save_midi_route_common( "MIDI Clock IN routing", LM_EEPROM_MIDI_CL_IN,    m, MIDI_ROUTE_VALID_FLAG );         }
+void eeprom_save_midi_clock_in_route( uint8_t m )   {   save_midi_route_common( (char*)"MIDI Clock IN routing", LM_EEPROM_MIDI_CL_IN,    m, MIDI_ROUTE_VALID_FLAG );         }
 
 uint8_t eeprom_load_midi_clock_in_route() {
   uint8_t r;
 
-  r = load_midi_route_common( "MIDI Clock IN routing", LM_EEPROM_MIDI_CL_IN );
+  r = load_midi_route_common( (char*)"MIDI Clock IN routing", LM_EEPROM_MIDI_CL_IN );
 
   if( (r & MIDI_ROUTE_VALID_MASK) != MIDI_ROUTE_VALID_FLAG ) {
     Serial.printf( "Invalid route, using USB\n" );
@@ -202,12 +202,12 @@ uint8_t eeprom_load_midi_clock_in_route() {
 
 // --- SYSEX
 
-void eeprom_save_midi_sysex_route( uint8_t m )      {   save_midi_route_common( "MIDI Sysex routing", LM_EEPROM_MIDI_SYSEX,       m, MIDI_ROUTE_VALID_FLAG );         }
+void eeprom_save_midi_sysex_route( uint8_t m )      {   save_midi_route_common( (char*)"MIDI Sysex routing", LM_EEPROM_MIDI_SYSEX,       m, MIDI_ROUTE_VALID_FLAG );         }
 
 uint8_t eeprom_load_midi_sysex_route() {
   uint8_t r;
 
-  r = load_midi_route_common( "MIDI Sysex routing", LM_EEPROM_MIDI_SYSEX );
+  r = load_midi_route_common( (char*)"MIDI Sysex routing", LM_EEPROM_MIDI_SYSEX );
 
   if( (r & MIDI_ROUTE_VALID_MASK) != MIDI_ROUTE_VALID_FLAG ) {
     Serial.printf( "Invalid route, using USB\n" );

@@ -134,7 +134,7 @@ void setup() {
 
   if(   (get_keycode() != KEY_MENU_LUMA) &&           // hold down MENU key to boot straight into Teensy mode
         init_sd_card() &&                             // SD card OK?
-        load_z80_rom_file( "Z80_CODE" ) ) {           // able to load the Z-80 code?
+        load_z80_rom_file( (char*)"Z80_CODE" ) ) {    // able to load the Z-80 code?
                                                       //    load z-80 RAM and sounds, start z-80
     // ===============================
     // use this to load patterns from RAM image

@@ -596,7 +596,7 @@ char *filename_to_name( char *fn ) {
   if( strlen(fn) > 3 )
     return &fn[3];
   else
-    return "UNKNOWN";
+    return (char*)"UNKNOWN";
 }
 
 
@@ -634,7 +634,7 @@ char *get_voice_bank_dirname( uint8_t bank_num ) {
       vb_dirname_cache_dirty = false;
     }
     else
-      return "ERROR:DRMBANKS";
+      return (char*)"ERROR:DRMBANKS";
   }
 
   // -- happy case, return data from cache
@@ -701,7 +701,7 @@ char *get_bank_name( char *bank_dir, uint8_t bank_num, char *file_name ) {
   else {
     //Serial.println("not found!");
     
-    strcpy( filebuf, "NO BANK NAME" );
+    strcpy( filebuf, (char*)"NO BANK NAME" );
   }
 
   return filebuf;
@@ -731,7 +731,7 @@ char *get_bank_name( char *bank_dir, uint8_t bank_num, char *file_name ) {
 */
 
 char *get_sd_voice_bank_name( uint8_t bank_num ) {
-  return get_bank_name( "DRMBANKS", bank_num, "BANKNAME.TXT" );
+  return get_bank_name( (char*)"DRMBANKS", bank_num, (char*)"BANKNAME.TXT" );
 }
 
 char *get_cur_bank_name() {
@@ -773,16 +773,16 @@ void load_voice_bank( uint16_t voice_selects, uint8_t bank_num ) {
 void store_voice_bank( uint16_t voice_selects, uint8_t bank_num ) {
   Serial.print("--- Storing voice bank # "); Serial.println( bank_num );
 
-  if( voice_selects & BANK_LOAD_CONGAS )    { build_voice_filename( STB_CONGAS,   bank_num, fn_buf );   store_voice_file( "CONGA",    bank_num ); }
-  if( voice_selects & BANK_LOAD_TOMS )      { build_voice_filename( STB_TOMS,     bank_num, fn_buf );   store_voice_file( "TOM",      bank_num ); }
-  if( voice_selects & BANK_LOAD_SNARE )     { build_voice_filename( STB_SNARE,    bank_num, fn_buf );   store_voice_file( "SNARE",    bank_num ); }
-  if( voice_selects & BANK_LOAD_BASS )      { build_voice_filename( STB_BASS,     bank_num, fn_buf );   store_voice_file( "BASS",     bank_num ); }
-  if( voice_selects & BANK_LOAD_HIHAT )     { build_voice_filename( STB_HIHAT,    bank_num, fn_buf );   store_voice_file( "HIHAT",    bank_num ); }
-  if( voice_selects & BANK_LOAD_COWBELL )   { build_voice_filename( STB_COWBELL,  bank_num, fn_buf );   store_voice_file( "COWBELL",  bank_num ); }
-  if( voice_selects & BANK_LOAD_CLAPS )     { build_voice_filename( STB_CLAPS,    bank_num, fn_buf );   store_voice_file( "CLAPS",    bank_num ); }
-  if( voice_selects & BANK_LOAD_CLAVE )     { build_voice_filename( STB_CLAVE,    bank_num, fn_buf );   store_voice_file( "CLAVE",    bank_num ); }     // also RIMSHOT
-  if( voice_selects & BANK_LOAD_TAMB )      { build_voice_filename( STB_TAMB,     bank_num, fn_buf );   store_voice_file( "TAMB",     bank_num ); }
-  if( voice_selects & BANK_LOAD_CABASA )    { build_voice_filename( STB_CABASA,   bank_num, fn_buf );   store_voice_file( "CABASA",   bank_num ); }
+  if( voice_selects & BANK_LOAD_CONGAS )    { build_voice_filename( STB_CONGAS,   bank_num, fn_buf );   store_voice_file( (char*)"CONGA",    bank_num ); }
+  if( voice_selects & BANK_LOAD_TOMS )      { build_voice_filename( STB_TOMS,     bank_num, fn_buf );   store_voice_file( (char*)"TOM",      bank_num ); }
+  if( voice_selects & BANK_LOAD_SNARE )     { build_voice_filename( STB_SNARE,    bank_num, fn_buf );   store_voice_file( (char*)"SNARE",    bank_num ); }
+  if( voice_selects & BANK_LOAD_BASS )      { build_voice_filename( STB_BASS,     bank_num, fn_buf );   store_voice_file( (char*)"BASS",     bank_num ); }
+  if( voice_selects & BANK_LOAD_HIHAT )     { build_voice_filename( STB_HIHAT,    bank_num, fn_buf );   store_voice_file( (char*)"HIHAT",    bank_num ); }
+  if( voice_selects & BANK_LOAD_COWBELL )   { build_voice_filename( STB_COWBELL,  bank_num, fn_buf );   store_voice_file( (char*)"COWBELL",  bank_num ); }
+  if( voice_selects & BANK_LOAD_CLAPS )     { build_voice_filename( STB_CLAPS,    bank_num, fn_buf );   store_voice_file( (char*)"CLAPS",    bank_num ); }
+  if( voice_selects & BANK_LOAD_CLAVE )     { build_voice_filename( STB_CLAVE,    bank_num, fn_buf );   store_voice_file( (char*)"CLAVE",    bank_num ); }     // also RIMSHOT
+  if( voice_selects & BANK_LOAD_TAMB )      { build_voice_filename( STB_TAMB,     bank_num, fn_buf );   store_voice_file( (char*)"TAMB",     bank_num ); }
+  if( voice_selects & BANK_LOAD_CABASA )    { build_voice_filename( STB_CABASA,   bank_num, fn_buf );   store_voice_file( (char*)"CABASA",   bank_num ); }
 }
 
 uint8_t *get_voice_file( char *fn, char *voice_name, int *voice_len );

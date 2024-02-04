@@ -24,7 +24,7 @@
 #ifndef LM_Beep_H_
 #define LM_Beep_H_
 
-void drum_beep( int freq, int dur );
+void drum_beep( unsigned int freq, unsigned int dur );
 
 void beep_success();
 void beep_failure();

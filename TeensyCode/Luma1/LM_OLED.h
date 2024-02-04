@@ -275,13 +275,13 @@ const unsigned char aphex_small [] PROGMEM = {
 #define LAST_BOOT_SCREEN_INDEX      2
 
 #ifdef INCLUDE_CUSTOM_BOOTSCREENS
-unsigned char *boot_logos[] = {
+const unsigned char *boot_logos[] = {
   luma_boot_screen,                     // 0
   bt_logo,                              // 1
   aphex_small                           // 2
 };
 #else
-unsigned char *boot_logos[] = {
+const unsigned char *boot_logos[] = {
   luma_boot_screen,                     // 0
   luma_boot_screen,                     // 1
   luma_boot_screen                      // 2

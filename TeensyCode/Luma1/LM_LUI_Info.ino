@@ -203,42 +203,42 @@ void draw_drum_bitmap() {
  
   xPos = 2;
   yPos = 1;
-  print_str_vertical( xPos, yPos, "CONGA" );
+  print_str_vertical( xPos, yPos, (char*)"CONGA" );
   draw_drum_button( xPos-2, DRM_BTN_YPOS, voice_load_bm & BANK_LOAD_CONGAS );
 
   xPos += DRM_BTN_WIDTH;
-  print_str_vertical( xPos, yPos, "TOM" );
+  print_str_vertical( xPos, yPos, (char*)"TOM" );
   draw_drum_button( xPos-2, DRM_BTN_YPOS, voice_load_bm & BANK_LOAD_TOMS );
 
   xPos += DRM_BTN_WIDTH;
-  print_str_vertical( xPos, yPos, "SNARE" );
+  print_str_vertical( xPos, yPos, (char*)"SNARE" );
   draw_drum_button( xPos-2, DRM_BTN_YPOS, voice_load_bm & BANK_LOAD_SNARE );
 
   xPos += DRM_BTN_WIDTH;
-  print_str_vertical( xPos, yPos, "BASS" );
+  print_str_vertical( xPos, yPos, (char*)"BASS" );
   draw_drum_button( xPos-2, DRM_BTN_YPOS, voice_load_bm & BANK_LOAD_BASS );
 
   xPos += DRM_BTN_WIDTH;
-  print_str_vertical( xPos, yPos, "HIHAT" );
+  print_str_vertical( xPos, yPos, (char*)"HIHAT" );
   draw_drum_button( xPos-2, DRM_BTN_YPOS, voice_load_bm & BANK_LOAD_HIHAT );
 
   xPos += DRM_BTN_WIDTH;
-  print_str_vertical( xPos, yPos, "COWBEL" );
+  print_str_vertical( xPos, yPos, (char*)"COWBEL" );
   draw_drum_button( xPos-2, DRM_BTN_YPOS, voice_load_bm & BANK_LOAD_COWBELL );
 
   xPos += DRM_BTN_WIDTH;
-  print_str_vertical( xPos, yPos, "CLAPS" );
+  print_str_vertical( xPos, yPos, (char*)"CLAPS" );
   draw_drum_button( xPos-2, DRM_BTN_YPOS, voice_load_bm & BANK_LOAD_CLAPS );
 
   xPos += DRM_BTN_WIDTH;
-  print_str_vertical( xPos, yPos, "RIMSHT" );
+  print_str_vertical( xPos, yPos, (char*)"RIMSHT" );
   draw_drum_button( xPos-2, DRM_BTN_YPOS, voice_load_bm & BANK_LOAD_CLAVE );
 
   xPos += DRM_BTN_WIDTH;
-  print_str_vertical( xPos, yPos, "TAMB" );
+  print_str_vertical( xPos, yPos, (char*)"TAMB" );
   draw_drum_button( xPos-2, DRM_BTN_YPOS, voice_load_bm & BANK_LOAD_TAMB );
 
   xPos += DRM_BTN_WIDTH;
-  print_str_vertical( xPos, yPos, "CABASA" );
+  print_str_vertical( xPos, yPos, (char*)"CABASA" );
   draw_drum_button( xPos-2, DRM_BTN_YPOS, voice_load_bm & BANK_LOAD_CABASA );
 }

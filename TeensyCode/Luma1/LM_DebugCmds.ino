@@ -161,7 +161,7 @@ void run_voice_test(  char *n, uint16_t strobe ) {
   set_voice(  strobe, 
               filebuf, 
               (((strobe == STB_CONGAS) || (strobe == STB_TOMS)) && (voice_test_sample_len == 32768))?16384:voice_test_sample_len, 
-              "DIAG" );
+              (char*)"DIAG" );
   
   Serial.printf("Playing waveform\n");
 
@@ -305,7 +305,7 @@ void run_rom_sram_test() {
   // -- RESTORE
   
   Serial.printf("Reloading Z-80 ROM code\n");
-  load_z80_rom_file( "Z80_CODE" );
+  load_z80_rom_file( (char*)"Z80_CODE" );
   
   Serial.printf("Applying Z-80 patches\n");
   apply_z80_patches();
@@ -548,16 +548,16 @@ void handle_debug_commands() {
                   break;
                   
 
-      case '0':   voice_test( "RIMSHOT", STB_CLAVE    );                                  break;
-      case '1':   voice_test( "COWBELL", STB_COWBELL  );                                  break;
-      case '2':   voice_test( "CONGAS",  STB_CONGAS   );                                  break;
-      case '3':   voice_test( "TOMS",    STB_TOMS     );                                  break;
-      case '4':   voice_test( "CLAPS",   STB_CLAPS    );                                  break;
-      case '5':   voice_test( "CABASA",  STB_CABASA   );                                  break;
-      case '6':   voice_test( "TAMB",    STB_TAMB     );                                  break;
-      case '7':   voice_test( "SNARE",   STB_SNARE    );                                  break;
-      case '8':   voice_test( "BASS",    STB_BASS     );                                  break;
-      case '9':   voice_test( "HIHAT",   STB_HIHAT    );                                  break;
+      case '0':   voice_test( (char*)"RIMSHOT", STB_CLAVE    );                           break;
+      case '1':   voice_test( (char*)"COWBELL", STB_COWBELL  );                           break;
+      case '2':   voice_test( (char*)"CONGAS",  STB_CONGAS   );                           break;
+      case '3':   voice_test( (char*)"TOMS",    STB_TOMS     );                           break;
+      case '4':   voice_test( (char*)"CLAPS",   STB_CLAPS    );                           break;
+      case '5':   voice_test( (char*)"CABASA",  STB_CABASA   );                           break;
+      case '6':   voice_test( (char*)"TAMB",    STB_TAMB     );                           break;
+      case '7':   voice_test( (char*)"SNARE",   STB_SNARE    );                           break;
+      case '8':   voice_test( (char*)"BASS",    STB_BASS     );                           break;
+      case '9':   voice_test( (char*)"HIHAT",   STB_HIHAT    );                           break;
 
       case '!':   voice_test_data = vtest_256;  voice_test_data_len = sizeof(vtest_256);          
                   Serial.printf("Wave: %d bytes\n", voice_test_data_len);                 break;
@@ -577,43 +577,43 @@ void handle_debug_commands() {
                   while(1) {
                     Serial.printf("\n\n===== VOICE TESTS ===\n\n");
                     
-                    run_voice_test( "CONGAS",  STB_CONGAS   );
+                    run_voice_test( (char*)"CONGAS",  STB_CONGAS   );
                     if( end_test_time() )
                       break;
 
-                    run_voice_test( "TOMS",    STB_TOMS     );
+                    run_voice_test( (char*)"TOMS",    STB_TOMS     );
                     if( end_test_time() )
                       break;
 
-                    run_voice_test( "SNARE",   STB_SNARE    );
+                    run_voice_test( (char*)"SNARE",   STB_SNARE    );
                     if( end_test_time() )
                       break;
 
-                    run_voice_test( "BASS",    STB_BASS     );
+                    run_voice_test( (char*)"BASS",    STB_BASS     );
                     if( end_test_time() )
                       break;
                       
-                    run_voice_test( "HIHAT",   STB_HIHAT    );
+                    run_voice_test( (char*)"HIHAT",   STB_HIHAT    );
                     if( end_test_time() )
                       break;
 
-                    run_voice_test( "COWBELL", STB_COWBELL  );
+                    run_voice_test( (char*)"COWBELL", STB_COWBELL  );
                     if( end_test_time() )
                       break;
                     
-                    run_voice_test( "CLAPS",   STB_CLAPS    );
+                    run_voice_test( (char*)"CLAPS",   STB_CLAPS    );
                     if( end_test_time() )
                       break;
 
-                    run_voice_test( "RIMSHOT", STB_CLAVE    );
+                    run_voice_test( (char*)"RIMSHOT", STB_CLAVE    );
                     if( end_test_time() )
                       break;
 
-                    run_voice_test( "TAMB",    STB_TAMB     );
+                    run_voice_test( (char*)"TAMB",    STB_TAMB     );
                     if( end_test_time() )
                       break;
                       
-                    run_voice_test( "CABASA",  STB_CABASA   );
+                    run_voice_test( (char*)"CABASA",  STB_CABASA   );
                     if( end_test_time() )
                       break;
 

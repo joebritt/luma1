@@ -87,7 +87,7 @@ char *pattern_bank_name( uint8_t bank ) {
 
 int vop_state = VOP_START;
 
-char *vop_prompt = "Voice Ops";             // this gets set by the state machine below to the UI message we need to show
+char *vop_prompt = (char*)"Voice Ops";      // this gets set by the state machine below to the UI message we need to show
 
 char vop_textbuf[256];                      // scratch string
 
@@ -97,18 +97,18 @@ uint16_t vop_target_voice;                  // target voice for some ops
 
 char *stb_2_name( uint16_t stb ) {
   switch( stb ) {
-    case STB_CONGAS:          return "CONGAS";
-    case STB_TOMS:            return "TOMS";
-    case STB_SNARE:           return "SNARE";
-    case STB_BASS:            return "BASS";
-    case STB_HIHAT:           return "HIHAT";
-    case STB_COWBELL:         return "COWBELL";
-    case STB_CLAPS:           return "CLAPS";
-    case STB_CLAVE:           return "RIMSHOT";
-    case STB_TAMB:            return "TAMB";
-    case STB_CABASA:          return "CABASA";
+    case STB_CONGAS:          return (char*)"CONGAS";
+    case STB_TOMS:            return (char*)"TOMS";
+    case STB_SNARE:           return (char*)"SNARE";
+    case STB_BASS:            return (char*)"BASS";
+    case STB_HIHAT:           return (char*)"HIHAT";
+    case STB_COWBELL:         return (char*)"COWBELL";
+    case STB_CLAPS:           return (char*)"CLAPS";
+    case STB_CLAVE:           return (char*)"RIMSHOT";
+    case STB_TAMB:            return (char*)"TAMB";
+    case STB_CABASA:          return (char*)"CABASA";
   }
-  return "ERROR";
+  return (char*)"ERROR";
 }
 
 
@@ -214,21 +214,21 @@ bool logic_ui_vop( uint8_t lastkey, int operation_select ) {
 bool display_ui_vop() {
   
   switch( vop_state ) {
-    case VOP_START:         vop_prompt = "Select Drum Voice";
-                            show_top_banner("Tap Drum");      
+    case VOP_START:         vop_prompt = (char*)"Select Drum Voice";
+                            show_top_banner((char*)"Tap Drum");      
                             break;
 
-    case VOP_TARGET:        vop_prompt = "Select Drum Voice";
+    case VOP_TARGET:        vop_prompt = (char*)"Select Drum Voice";
                             show_top_banner( stb_2_name(vop_start_voice) );    
-                            show_middle_banner("Tap Drum");      
+                            show_middle_banner((char*)"Tap Drum");      
                             break;
 
-    case VOP_COPY:          vop_prompt = "DONE, hit PLAY/STOP";
+    case VOP_COPY:          vop_prompt = (char*)"DONE, hit PLAY/STOP";
                             show_top_banner( stb_2_name(vop_start_voice) );    
                             show_middle_banner( stb_2_name(vop_target_voice) );    
                             break;
 
-    case VOP_REVERSE:       vop_prompt = "DONE, hit PLAY/STOP";
+    case VOP_REVERSE:       vop_prompt = (char*)"DONE, hit PLAY/STOP";
                             show_top_banner( stb_2_name(vop_start_voice) );    
                             show_middle_banner( stb_2_name(vop_target_voice) );    
                             break;    
@@ -269,16 +269,16 @@ bool display_ui_vop() {
 char *handle_val_eprom_size( uint8_t val, bool val_is_valid ) {
   if( val_is_valid ) {
     switch( val ) {
-      case 00:  eprom_size = 2048;      return "2716 (2 KB)";
-      case 01:  eprom_size = 4096;      return "2732 (4 KB)";
-      case 02:  eprom_size = 8192;      return "2764 (8 KB)";
-      case 03:  eprom_size = 16384;     return "27128 (16 KB)";
-      case 04:  eprom_size = 32768;     return "27256 (32 KB)";
-      default:  eprom_size = 0;         return "Invalid Type";
+      case 00:  eprom_size = 2048;      return (char*)"2716 (2 KB)";
+      case 01:  eprom_size = 4096;      return (char*)"2732 (4 KB)";
+      case 02:  eprom_size = 8192;      return (char*)"2764 (8 KB)";
+      case 03:  eprom_size = 16384;     return (char*)"27128 (16 KB)";
+      case 04:  eprom_size = 32768;     return (char*)"27256 (32 KB)";
+      default:  eprom_size = 0;         return (char*)"Invalid Type";
     }
   }
 
-  return"EPROM Type";
+  return (char*)"EPROM Type";
 }
 
 
@@ -304,7 +304,7 @@ char *handle_val_eprom_size( uint8_t val, bool val_is_valid ) {
 
 int eprom_dump_state = EDUMP_START;
 
-char *eprom_dump_prompt = "EPROM Dump";     // this gets set by the state machine below to the UI message we need to show
+char *eprom_dump_prompt = (char*)"EPROM Dump";  // this gets set by the state machine below to the UI message we need to show
 
 char eprom_dump_textbuf[256];               // scratch string
 
@@ -329,61 +329,61 @@ char eprom_dump_textbuf[256];               // scratch string
 bool logic_ui_eprom_dump( uint8_t lastkey ) {
 
   switch( eprom_dump_state ) {
-    case EDUMP_START:       eprom_dump_prompt = "Select Drum Voice";
+    case EDUMP_START:       eprom_dump_prompt = (char*)"Select Drum Voice";
     
                             switch( lastkey ) {
                               case KEY_DRM_CONGA_UP:
-                              case KEY_DRM_CONGA_DN:    eprom_dump_prompt = "CONGA";
+                              case KEY_DRM_CONGA_DN:    eprom_dump_prompt = (char*)"CONGA";
                                                         eprom_dump_voice = STB_CONGAS;
                                                         eprom_dump_state = EDUMP_SET_SWITCH;
                                                         break;
                               
                               case KEY_DRM_TOM_UP:
-                              case KEY_DRM_TOM_DN:      eprom_dump_prompt = "TOM";
+                              case KEY_DRM_TOM_DN:      eprom_dump_prompt = (char*)"TOM";
                                                         eprom_dump_voice = STB_TOMS;
                                                         eprom_dump_state = EDUMP_SET_SWITCH;
                                                         break;
                           
                               case KEY_DRM_SNARE_LO:
-                              case KEY_DRM_SNARE_HI:    eprom_dump_prompt = "SNARE";
+                              case KEY_DRM_SNARE_HI:    eprom_dump_prompt = (char*)"SNARE";
                                                         eprom_dump_voice = STB_SNARE;
                                                         eprom_dump_state = EDUMP_SET_SWITCH;
                                                         break;
                           
                               case KEY_DRM_BASS_LO:                              
-                              case KEY_DRM_BASS_HI:     eprom_dump_prompt = "BASS";
+                              case KEY_DRM_BASS_HI:     eprom_dump_prompt = (char*)"BASS";
                                                         eprom_dump_voice = STB_BASS;
                                                         eprom_dump_state = EDUMP_SET_SWITCH;
                                                         break;
                           
                               case KEY_DRM_HIHAT_OP:                              
                               case KEY_DRM_HIHAT_LO:                              
-                              case KEY_DRM_HIHAT_HI:    eprom_dump_prompt = "HIHAT";
+                              case KEY_DRM_HIHAT_HI:    eprom_dump_prompt = (char*)"HIHAT";
                                                         eprom_dump_voice = STB_HIHAT;
                                                         eprom_dump_state = EDUMP_SET_SWITCH;
                                                         break;
                                                         
-                              case KEY_DRM_COWBELL:     eprom_dump_prompt = "COWBELL";
+                              case KEY_DRM_COWBELL:     eprom_dump_prompt = (char*)"COWBELL";
                                                         eprom_dump_voice = STB_COWBELL;
                                                         eprom_dump_state = EDUMP_SET_SWITCH;
                                                         break;
-                              case KEY_DRM_CLAPS:       eprom_dump_prompt = "CLAPS";
+                              case KEY_DRM_CLAPS:       eprom_dump_prompt = (char*)"CLAPS";
                                                         eprom_dump_voice = STB_CLAPS;
                                                         eprom_dump_state = EDUMP_SET_SWITCH;
                                                         break;
-                              case KEY_DRM_CLAVE:       eprom_dump_prompt = "RIMSHOT";
+                              case KEY_DRM_CLAVE:       eprom_dump_prompt = (char*)"RIMSHOT";
                                                         eprom_dump_voice = STB_CLAVE;
                                                         eprom_dump_state = EDUMP_SET_SWITCH;
                                                         break;
                           
                               case KEY_DRM_TAMB_LO:                              
-                              case KEY_DRM_TAMB_HI:     eprom_dump_prompt = "TAMBOURINE";
+                              case KEY_DRM_TAMB_HI:     eprom_dump_prompt = (char*)"TAMBOURINE";
                                                         eprom_dump_voice = STB_TAMB;
                                                         eprom_dump_state = EDUMP_SET_SWITCH;
                                                         break;
                           
                               case KEY_DRM_CABASA_LO:                              
-                              case KEY_DRM_CABASA_HI:   eprom_dump_prompt = "CABASA";
+                              case KEY_DRM_CABASA_HI:   eprom_dump_prompt = (char*)"CABASA";
                                                         eprom_dump_voice = STB_CABASA;
                                                         eprom_dump_state = EDUMP_SET_SWITCH;
                                                         break;
@@ -440,12 +440,12 @@ bool display_ui_eprom_dump() {
   
   switch( eprom_dump_state ) {
     case EDUMP_START:       
-                            eprom_dump_prompt = "Select Drum Voice";
+                            eprom_dump_prompt = (char*)"Select Drum Voice";
                             
-                            show_top_banner("Tap Drum to Load");      
+                            show_top_banner((char*)"Tap Drum to Load");      
 
                             flashrate_bottom( FLASH_VERY_FAST );
-                            show_bottom_banner("DO NOT INSERT EPROM!");
+                            show_bottom_banner((char*)"DO NOT INSERT EPROM!");
                             break;
 
     case EDUMP_SET_SWITCH:                              
@@ -454,38 +454,38 @@ bool display_ui_eprom_dump() {
                             show_top_banner( eprom_dump_textbuf );
                             
                             switch( eprom_size ) {
-                              case 2048:  show_middle_banner("Set EPROM pins to 24");  break;
-                              case 4096:  show_middle_banner("Set EPROM pins to 24");  break;
-                              case 8192:  show_middle_banner("Set EPROM pins to 28");  break;
-                              case 16384: show_middle_banner("Set EPROM pins to 28");  break;
-                              case 32768: show_middle_banner("Set EPROM pins to 28");  break;
+                              case 2048:  show_middle_banner((char*)"Set EPROM pins to 24");  break;
+                              case 4096:  show_middle_banner((char*)"Set EPROM pins to 24");  break;
+                              case 8192:  show_middle_banner((char*)"Set EPROM pins to 28");  break;
+                              case 16384: show_middle_banner((char*)"Set EPROM pins to 28");  break;
+                              case 32768: show_middle_banner((char*)"Set EPROM pins to 28");  break;
                             }
 
                             flashrate_bottom( 0 );
-                            show_bottom_banner( "PLAY/STOP to continue" );
+                            show_bottom_banner( (char*)"PLAY/STOP to continue" );
                             break;
 
     case EDUMP_INSERT:
-                            show_top_banner( "Insert EPROM" );      
+                            show_top_banner( (char*)"Insert EPROM" );      
                             flashrate_middle( FLASH_FAST );
-                            show_middle_banner( "NOTE ORIENTATION!" );
-                            show_bottom_banner( "PLAY/STOP to continue" );
+                            show_middle_banner( (char*)"NOTE ORIENTATION!" );
+                            show_bottom_banner( (char*)"PLAY/STOP to continue" );
                             break;
                           
     case EDUMP_DUMP:
     case EDUMP_DUMP_2:
-                            show_top_banner( "Reading..." );      
+                            show_top_banner( (char*)"Reading..." );      
                             break;
 
     case EDUMP_REMOVE:
                             flashrate_top( FLASH_FAST );
-                            show_top_banner( "REMOVE EPROM NOW!" );      
+                            show_top_banner( (char*)"REMOVE EPROM NOW!" );      
 
                             sprintf( eprom_dump_textbuf, "Checksum: %04X", eprom_checksum );
                             flashrate_middle( 0 );
                             show_middle_banner( eprom_dump_textbuf );
                             
-                            show_bottom_banner( "PLAY/STOP to continue" );
+                            show_bottom_banner( (char*)"PLAY/STOP to continue" );
                             break;
 
     case EDUMP_FINISHED:    

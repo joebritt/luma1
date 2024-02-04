@@ -31,7 +31,7 @@ elapsedMillis beeptime;
 
 // assumes Teensy has z-80 bus
 
-void drum_beep( int freq, int dur ) {           // dur is ms
+void drum_beep( unsigned int freq, unsigned int dur ) {           // dur is ms
   int per;
 
   per = 1000000 / freq;
