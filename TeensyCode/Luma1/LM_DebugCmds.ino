@@ -474,7 +474,7 @@ void handle_debug_commands() {
                       case KEY_DRM_CONGA_DN:  Serial.printf("got CONGA v\n");                     break;
                       case KEY_LOAD:          Serial.printf("got LOAD (unused on Luma-1)\n");     break;
                       case KEY_VERIFY:        Serial.printf("got VERIFY (unused on Luma-1)\n");   break;
-                      case KEY_MENU:          Serial.printf("got MENU (SAVE on LM-1) #\n");       break;
+                      case KEY_MENU_LUMA:     Serial.printf("got MENU (SAVE on LM-1) #\n");       break;
                       case KEY_TEMPO:         Serial.printf("got DISPLAY (TEMPO)\n");             break;
 
                       case KEY_DRM_HIHAT_OP:  Serial.printf("got OPEN HIHAT\n");                    break;

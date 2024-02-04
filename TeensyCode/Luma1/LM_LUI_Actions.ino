@@ -200,7 +200,7 @@ bool logic_ui_vop( uint8_t lastkey, int operation_select ) {
                             break;
         
     case VOP_FINISHED:    
-                            if( (lastkey == KEY_PLAY_STOP) || (lastkey == KEY_MENU) ) {
+                            if( (lastkey == KEY_PLAY_STOP) || (lastkey == KEY_MENU_LUMA) ) {
                               vop_state = VOP_START;
                               return true;
                             }

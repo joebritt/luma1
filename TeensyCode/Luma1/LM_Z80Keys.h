@@ -71,7 +71,7 @@
 #define   KEY_LOAD          0x1b          // UNUSED on Luma-1
 #define   KEY_VERIFY        0x1a          // UNUSED on Luma-1
 //#define   KEY_SAVE          0x19
-#define   KEY_MENU          0x19          // SAVE/STORE repurposed for MENU on Luma-1
+#define   KEY_MENU_LUMA     0x19          // SAVE/STORE repurposed for MENU on Luma-1
 #define   KEY_TEMPO         0x18
 
 #define KB_ROW_5          0xdc10

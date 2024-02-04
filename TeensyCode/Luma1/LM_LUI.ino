@@ -641,7 +641,7 @@ uint8_t input_digits( uint8_t keycode, uint8_t *digits ) {
                               retval = INPUT_DIGITS_COMPLETE;
                             break;
                             
-        case KEY_MENU:      //Serial.println("got MENU");
+        case KEY_MENU_LUMA: //Serial.println("got MENU");
                             retval = INPUT_DIGITS_CANCEL;         // AKA STORE
                             break;
                             
