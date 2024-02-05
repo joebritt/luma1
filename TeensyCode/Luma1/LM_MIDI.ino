@@ -1000,9 +1000,11 @@ void myStart() {
 
   got_midi_start = true;
 
+/*
   z80_patch_footswitch( true );
   delayMicroseconds( FOOTSWITCH_TIME );
   z80_patch_footswitch( false );
+*/
 }
 
 
@@ -1015,9 +1017,11 @@ void myContinue() {
 
   got_midi_start = true;                                      // we don't really honor Continue
 
+/*
   z80_patch_footswitch( true );
   delayMicroseconds( FOOTSWITCH_TIME );
   z80_patch_footswitch( false );
+*/
 }
 
 
@@ -1032,9 +1036,11 @@ void myStop() {
 
   set_tape_sync_clk_gpo( true );
 
+/*
   z80_patch_footswitch( true );
   delayMicroseconds( FOOTSWITCH_TIME );
   z80_patch_footswitch( false );
+*/
 }
 
 
