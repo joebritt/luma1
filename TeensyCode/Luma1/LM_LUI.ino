@@ -158,6 +158,7 @@ char *lui_actions( uint8_t cmd ) {
     case 0x83:  return (char*)"MIDI Clock OUT";
     case 0x84:  return (char*)"MIDI Clock IN";
     case 0x85:  return (char*)"MIDI SysEx";
+    case 0x86:  return (char*)"MIDI Soft Thru";
     case 0x90:  return (char*)"Boot Screen";
     case 0x97:  return (char*)"SD Dir";
     case 0x98:  return (char*)"Format SD";
@@ -362,7 +363,16 @@ char *lui_val_info( uint8_t cmd, uint8_t val, bool val_is_valid ) {
                 }
               }
               break;
-              
+
+    case 86:  show_top_banner( (char*)"MIDI Soft Thru " );
+              if( val_is_valid ) {
+                switch( val ) {
+                  case 00:  return (char*)"off";
+                  case 01:  return (char*)"ON";
+                }
+              }
+              break;
+
     case 90:  show_top_banner( (char*)"Choose Boot Screen" );
               return (char*)"Screen";
               break;
@@ -851,7 +861,12 @@ void handle_local_ui() {
                                   input_digits_init_preload( get_midi_sysex_route()-1 );
                                   local_ui_state = LUI_GET_VAL;
                                   break;
-                                  
+
+                        case 86:  valid_range( 0, 1 );                      // off, ON
+                                  input_digits_init_preload( (get_midi_soft_thru() ? 1:0) );
+                                  local_ui_state = LUI_GET_VAL;
+                                  break;
+
                         case 90:  valid_range( 0, 2 );                      // 3 boot screens
                                   input_digits_init();
                                   local_ui_state = LUI_GET_VAL;
@@ -993,7 +1008,12 @@ void handle_local_ui() {
                                     set_midi_sysex_route( val );
                                     eeprom_save_midi_sysex_route( val );
                                     break;
-                                                                        
+
+                          case 86:  Serial.printf("CMD: MIDI Soft Thru %02x\n", val );
+                                    set_midi_soft_thru( val ? true:false );
+                                    eeprom_save_midi_soft_thru( val ? true:false );
+                                    break;
+
                           case 90:  Serial.print("CMD: Boot Screen Select "); Serial.println( val );
                                     eeprom_save_boot_screen_select( val );
                                     break;

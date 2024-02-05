@@ -53,6 +53,11 @@ uint8_t midi_clock_in_route;      // can be DIN5 or USB only
 uint8_t midi_sysex_route;         // can be DIN5 or USB only
 
 
+// --- SOFT THRU
+
+bool midi_soft_thru;              // initialized from EEPROM
+
+
 // --- Updated by key, sequence, or midi drum trigger, selects which sound to load
 
 uint16_t last_drum = STB_BASS;
@@ -144,6 +149,8 @@ void init_midi() {
 
   set_midi_sysex_route( eeprom_load_midi_sysex_route() );
 
+  midi_soft_thru = eeprom_load_midi_soft_thru();
+
 
   // -- set up the drum voice management (used for NOFs) table
 
@@ -233,6 +240,24 @@ void set_midi_sysex_route( uint8_t r )      {     midi_sysex_route = r;         
 uint8_t get_midi_sysex_route()              {     return midi_sysex_route;      }
 
 
+// --- Soft Thru
+
+void set_midi_soft_thru( bool on ) {
+  midi_soft_thru = on;   
+
+  Serial.printf("Turning MIDI Soft Thru %s\n", midi_soft_thru?"ON":"off");
+  
+  if( midi_soft_thru ) {
+    midiDIN.turnThruOn();
+    //usbMIDI.turnThruOn();                 // doesn't exist for USB
+  } else {
+    midiDIN.turnThruOff();
+    //usbMIDI.turnThruOff();                // doesn't exist for USB
+  }
+
+}
+
+bool get_midi_soft_thru()                   {     return midi_soft_thru;        }
 
 /* ---------------------------------------------------------------------------------------
     Interface-specific trampolines, which choose whether or not to call the actual handler based on interface enable settings

@@ -42,6 +42,7 @@
 #define LM_EEPROM_MIDI_CL_OUT       5
 #define LM_EEPROM_MIDI_CL_IN        6
 #define LM_EEPROM_MIDI_SYSEX        7
+#define LM_EEPROM_MIDI_SOFT_THRU    8
 
 // ... available ...
 
@@ -77,6 +78,8 @@ uint8_t eeprom_load_midi_clock_in_route();
 void eeprom_save_midi_sysex_route( uint8_t m );
 uint8_t eeprom_load_midi_sysex_route();
 
+void eeprom_save_midi_soft_thru( bool on );
+bool eeprom_load_midi_soft_thru();
 
 // --- Serial #
 

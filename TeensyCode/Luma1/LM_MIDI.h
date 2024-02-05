@@ -96,6 +96,10 @@ void set_midi_sysex_route( uint8_t r );
 
 uint8_t get_midi_sysex_route();
 
+// --- Soft Thru
+
+void set_midi_soft_thru( bool on );
+bool get_midi_soft_thru();
 
 
 // drum trigger to/from MIDI

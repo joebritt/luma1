@@ -220,6 +220,19 @@ uint8_t eeprom_load_midi_sysex_route() {
 }
 
 
+// --- SOFT THRU
+
+void eeprom_save_midi_soft_thru( bool on ) {
+  Serial.printf("Saving Soft Thru: %s\n", on?"ON":"off");
+  EEPROM.write( LM_EEPROM_MIDI_SOFT_THRU, on?1:0 );
+}
+
+bool eeprom_load_midi_soft_thru() {
+  uint8_t m;
+  m = EEPROM.read( LM_EEPROM_MIDI_SOFT_THRU );
+  Serial.printf("Loaded Soft Thru: %s\n", m?"ON":"off" );
+  return m?true:false;
+}
 
 // -----------------------------
 // SERIAL NUMBER
