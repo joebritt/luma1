@@ -115,7 +115,7 @@ void save_ram_bank( uint8_t banknum ) {
     build_rambank_filename( banknum, checksum(rambuf, 8192), fn_buf );
     Serial.println( fn_buf );
     
-    if ( file = SD.open( fn_buf, O_RDWR | O_CREAT | O_TRUNC ) ) {
+    if ( file = SD.open( fn_buf, (O_RDWR | O_CREAT | O_TRUNC) ) ) {
       Serial.println("### open OK");
 
       file.write( rambuf, 8192 );
@@ -209,24 +209,24 @@ char *get_ram_bank_name( uint8_t bank_num ) {             // 0xff for current ac
 
   if( bank_num == 0xff ) {                                // special case, currently active RAM
     copy_z80_ram( rambuf );
-    sprintf( filebuf, "RAM_BANK_%04x", checksum(rambuf,8192));
+    sprintf( (char*)filebuf, "RAM_BANK_%04x", checksum(rambuf,8192));
   }
   else {
-    sprintf( filebuf, "/RAMBANKS/%02d/", bank_num );
+    sprintf( (char*)filebuf, "/RAMBANKS/%02d/", bank_num );
   
-    root = SD.open( filebuf );
+    root = SD.open( (char*)filebuf );
     file = root.openNextFile();
   
     if( file ) {
-      snprintf( filebuf, MAX_DISPLAYED_FN_LEN, "%s", file.name() );
+      snprintf( (char*)filebuf, MAX_DISPLAYED_FN_LEN, "%s", file.name() );
       file.close();
     }
     else {
-      sprintf( filebuf, "No RAM Bank %02d found", bank_num );
+      sprintf( (char*)filebuf, "No RAM Bank %02d found", bank_num );
     }
   }
 
-  return filebuf;
+  return (char*)filebuf;
 }
 
 
