@@ -151,7 +151,7 @@ elapsedMillis fan_anim_time = 0;
 #define FAN_ANIM_FRAME_TIME     250
 
 char fans[4] = { '|', '/', '-', '\\' };
-char fan_frame = 0;
+int fan_frame = 0;
 
 void draw_sys_display() {
   display.fillRect( 0, 0, 128, 10, SH110X_BLACK );
