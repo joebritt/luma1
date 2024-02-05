@@ -352,7 +352,9 @@ void din_myStop() {
 
 bool getting_1st_din5_block = true;
 
-void din_mySystemExclusiveChunk(const byte *d, uint16_t len, bool last) {
+void din_mySystemExclusiveChunk(unsigned char *d, unsigned int len) {
+  bool last = false;
+
   if( get_midi_sysex_route() & ROUTE_DIN5 ) {
       
     //Serial.printf("--> original\n");
