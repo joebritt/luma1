@@ -72,7 +72,7 @@ typedef struct {
   byte flags;
   uint16_t strobe;
   elapsedMillis drum_time_elapsed; 
-} __attribute__((packed)) drum_midi_map_t;
+} drum_midi_map_t;
 
 drum_midi_map_t drums[13];
 
