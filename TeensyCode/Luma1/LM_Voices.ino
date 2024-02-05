@@ -701,10 +701,10 @@ char *get_bank_name( char *bank_dir, uint8_t bank_num, char *file_name ) {
   else {
     //Serial.println("not found!");
     
-    strcpy( filebuf, (char*)"NO BANK NAME" );
+    strcpy( (char*)filebuf, (char*)"NO BANK NAME" );
   }
 
-  return filebuf;
+  return (char*)filebuf;
 }
 
 
