@@ -691,7 +691,9 @@ char *drum_name( int idx, byte vel ) {
                   case drum_CONGA_UP:   return (char*)"CONGA ^";                                                      break;
                   case drum_CONGA_DN:   return (char*)"CONGA v";                                                      break;
                   case drum_COWBELL:    return (char*)"COWBELL";                                                      break;
-                  case drum_CLAVE:      return (char*)"RIMSHOT";                                                      break;          
+                  case drum_CLAVE:      return (char*)"RIMSHOT";                                                      break;
+  
+                  default:              return (char*)"UNKNOWN";                                                      break;
   }
 }
 
