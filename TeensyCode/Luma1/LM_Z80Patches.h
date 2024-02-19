@@ -25,7 +25,11 @@
 #ifndef LM_Z80Patches_
 #define LM_Z80Patches_
 
-void apply_z80_patches();
+void apply_z80_patches();                       // fixed patches, called at boot (e.g., remove STORE / MENU delay)
 
+void handle_z80_patches();                      // call frequently, handles timers that change patch states
+
+
+void z80_patch_footswitch( bool down );         // simulate a PLAY/STOP footpedal press/release
 
 #endif

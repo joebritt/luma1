@@ -963,17 +963,6 @@ void run_tempo_clock() {
 }
 
 
-// look for new times that are +/- 10% of the previous
-
-bool clocktime_sanity_check( uint32_t prev, uint32_t cur ) {
-  uint32_t safe_band = prev / 10;
-
-  if( (cur > (prev + safe_band)) || (cur < (prev - safe_band)) )
-    return false;
-  else
-    return true;
-}
-
 
 // -- Called when we get a MIDI Clock
 
@@ -991,8 +980,6 @@ void myClock() {
 
 // -- Called when we get a MIDI Start
 
-#define FOOTSWITCH_TIME     2000
-
 void myStart() {
   Serial.println("received MIDI Start");
 
@@ -1000,11 +987,7 @@ void myStart() {
 
   got_midi_start = true;
 
-/*
   z80_patch_footswitch( true );
-  delayMicroseconds( FOOTSWITCH_TIME );
-  z80_patch_footswitch( false );
-*/
 }
 
 
@@ -1017,11 +1000,7 @@ void myContinue() {
 
   got_midi_start = true;                                      // we don't really honor Continue
 
-/*
   z80_patch_footswitch( true );
-  delayMicroseconds( FOOTSWITCH_TIME );
-  z80_patch_footswitch( false );
-*/
 }
 
 
@@ -1032,15 +1011,10 @@ void myStop() {
 
   got_midi_start = false;                                     // back to waiting for Start
 
-  tc_gen_state = TC_GEN_IDLE;                                 // stop the tempo clock pulses
-
-  set_tape_sync_clk_gpo( true );
-
-/*
   z80_patch_footswitch( true );
-  delayMicroseconds( FOOTSWITCH_TIME );
-  z80_patch_footswitch( false );
-*/
+
+  tc_gen_state = TC_GEN_MIDI_CLK_HI;                          // run 1 more pair of clock pulses, otherwise sequencer gets stuck
+  run_tempo_clock();                                          // this will go back to IDLE after generating those pulses
 }
 
 

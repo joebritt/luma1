@@ -33,10 +33,11 @@
 
 #include "LM_Z80Patches.h"
 
+// called at boot
 
 void apply_z80_patches() {
 
-    Serial.print("Applying Z-80 code patches...");
+    Serial.print("Applying fixed Z-80 code patches...");
     
     // MENU / STORE Patch
 
@@ -44,3 +45,47 @@ void apply_z80_patches() {
 
     Serial.println("done.");
 }
+
+
+// simulate press/release the PLAY/STOP footpedal
+
+#define FOOT_DOWN_TIME_MS                           250
+
+elapsedMillis footswitch_time;
+int footswitch_up_time = 0;                         // time in the future to lift footswitch
+
+void z80_patch_footswitch( bool down ) {
+
+  teensy_drives_z80_bus( true );                    // *** Teensy owns Z-80 bus
+
+  if( down ) {                                      // override check
+    z80_bus_write( 0x8725, 0x18 );                  // 18 = jr
+
+    footswitch_time = 0;                            // reset clock...
+    footswitch_up_time = FOOT_DOWN_TIME_MS;         // ...will raise it at this time in the future
+  }
+  else {
+    z80_bus_write( 0x8725, 0x20 );                  // 20 = jr nz
+
+    footswitch_up_time = 0;
+  }
+
+  teensy_drives_z80_bus( false );                   // *** Teensy releases Z-80 bus
+}
+
+
+// call frequently, handles timers that change patch states
+
+void handle_z80_patches() {
+
+  // --- if FOOT_DOWN_TIME_MS has elapsed since "pressing" the foot switch, let it up
+
+  if( (footswitch_up_time > 0) && (footswitch_time >= footswitch_up_time) ) {
+      //Serial.printf("foot up\n");
+      z80_patch_footswitch( false );
+      footswitch_up_time = 0;
+  }
+
+}               
+
+

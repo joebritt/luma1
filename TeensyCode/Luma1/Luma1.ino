@@ -51,7 +51,7 @@
 */
 
 #define   LUMA1_FW_VERSION_MAJOR    0
-#define   LUMA1_FW_VERSION_MINOR    923
+#define   LUMA1_FW_VERSION_MINOR    924
 
 char serial_number[9];                              // we terminate with 0 so we can use it as a string
 
@@ -214,6 +214,8 @@ void loop_time_critical() {
   
   handle_midi_in();
   handle_midi_out();
+
+  handle_z80_patches();                             // handles timers that change patch states
 }
 
 
