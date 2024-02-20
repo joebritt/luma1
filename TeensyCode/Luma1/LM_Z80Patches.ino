@@ -33,7 +33,8 @@
 
 #include "LM_Z80Patches.h"
 
-// called at boot
+
+// --- called at boot
 
 void apply_z80_patches() {
 
@@ -47,7 +48,29 @@ void apply_z80_patches() {
 }
 
 
-// simulate press/release the PLAY/STOP footpedal
+
+// --- bits in status byte at z80 address 0xa001
+
+#define Z80_SEQ_PLAYING         0x04
+#define Z80_SEQ_RECORDING       0x02
+#define Z80_SEQ_CHAIN_ON        0x01
+
+bool z80_sequencer_running() {
+  bool r = false;
+
+  teensy_drives_z80_bus( true );                    // *** Teensy owns Z-80 bus
+
+  //Serial.printf("cur_state: %02x\n", z80_bus_read(0xa001));
+
+  r = (z80_bus_read(0xa001) & Z80_SEQ_PLAYING);
+
+  teensy_drives_z80_bus( false );                   // *** Teensy releases Z-80 bus
+
+  return r;
+}
+
+
+// --- simulate press/release the PLAY/STOP footpedal
 
 #define FOOT_DOWN_TIME_MS                           250
 
@@ -74,7 +97,7 @@ void z80_patch_footswitch( bool down ) {
 }
 
 
-// call frequently, handles timers that change patch states
+// --- call frequently, handles timers that change patch states
 
 void handle_z80_patches() {
 

@@ -987,7 +987,10 @@ void myStart() {
 
   got_midi_start = true;
 
-  z80_patch_footswitch( true );
+  if( !z80_sequencer_running() )                              // if z80 seq not running...
+    z80_patch_footswitch( true );                             // ...start it
+  else
+    Serial.printf("--> Z80 sequencer already running\n");
 }
 
 
@@ -1000,7 +1003,10 @@ void myContinue() {
 
   got_midi_start = true;                                      // we don't really honor Continue
 
-  z80_patch_footswitch( true );
+  if( !z80_sequencer_running() )                              // if z80 seq not running...
+    z80_patch_footswitch( true );                             // ...start it
+  else
+    Serial.printf("--> Z80 sequencer already running\n");
 }
 
 
@@ -1011,7 +1017,10 @@ void myStop() {
 
   got_midi_start = false;                                     // back to waiting for Start
 
-  z80_patch_footswitch( true );
+  if( z80_sequencer_running() )                              // if z80 seq IS running...
+    z80_patch_footswitch( true );                             // ...STOP it
+  else
+    Serial.printf("--> Z80 sequencer already stopped\n");
 
   tc_gen_state = TC_GEN_MIDI_CLK_HI;                          // run 1 more pair of clock pulses, otherwise sequencer gets stuck
   run_tempo_clock();                                          // this will go back to IDLE after generating those pulses

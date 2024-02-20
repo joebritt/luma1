@@ -30,6 +30,10 @@ void apply_z80_patches();                       // fixed patches, called at boot
 void handle_z80_patches();                      // call frequently, handles timers that change patch states
 
 
+// --- Z80 Sequencer Status & Control
+
+bool z80_sequencer_running();
+
 void z80_patch_footswitch( bool down );         // simulate a PLAY/STOP footpedal press/release
 
 #endif
