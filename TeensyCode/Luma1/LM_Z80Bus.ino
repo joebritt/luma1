@@ -438,11 +438,13 @@ void z80_reset( bool inreset ) {
 
 
 void set_LED_SET_2( uint8_t val ) {
+  led_set_2_shadow = z80_bus_read( D802_SHADOW );     // Z-80's copy of LED_SET_2 state
   led_set_2_shadow |= val;
   z80_bus_write( LED_SET_2, led_set_2_shadow );
 }
 
 void clr_LED_SET_2( uint8_t val ) {
+  led_set_2_shadow = z80_bus_read( D802_SHADOW );     // Z-80's copy of LED_SET_2 state
   led_set_2_shadow &= ~val;
   z80_bus_write( LED_SET_2, led_set_2_shadow );
 }
