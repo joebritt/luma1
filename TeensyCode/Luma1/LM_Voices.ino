@@ -259,9 +259,13 @@ void trig_voice( uint16_t voice, uint8_t val ) {
     val |= 0x04;                              // DO[2] = 1 selects CONGAS
   }
 
-  clr_LED_SET_2( DRUM_DO_ENABLE );            // active low enable in bit 7
-  z80_bus_write( voice, val );                // write val to trig
-  set_LED_SET_2( DRUM_DO_ENABLE );            // active low enable in bit 7
+  save_LED_SET_2();                           // the way we were
+
+    clr_LED_SET_2( DRUM_DO_ENABLE );          // active low enable in bit 7
+    z80_bus_write( voice, val );              // write val to trig
+    set_LED_SET_2( DRUM_DO_ENABLE );          // active low enable in bit 7
+
+  restore_LED_SET_2();                        // back like we were before
 }
 
 
