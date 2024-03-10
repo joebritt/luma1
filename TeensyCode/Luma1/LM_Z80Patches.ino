@@ -55,16 +55,13 @@ void apply_z80_patches() {
 #define Z80_SEQ_RECORDING       0x02
 #define Z80_SEQ_CHAIN_ON        0x01
 
-bool z80_sequencer_running() {
+bool z80_sequencer_running() {                      // *** CALL ONLY WHEN TEENSY HAS THE BUS
   bool r = false;
 
-  teensy_drives_z80_bus( true );                    // *** Teensy owns Z-80 bus
 
   //Serial.printf("cur_state: %02x\n", z80_bus_read(0xa001));
 
   r = (z80_bus_read(0xa001) & Z80_SEQ_PLAYING);
-
-  teensy_drives_z80_bus( false );                   // *** Teensy releases Z-80 bus
 
   return r;
 }
@@ -77,20 +74,51 @@ bool z80_sequencer_running() {
 elapsedMillis footswitch_time;
 int footswitch_up_time = 0;                         // time in the future to lift footswitch
 
-void z80_patch_footswitch( bool down ) {
 
-  teensy_drives_z80_bus( true );                    // *** Teensy owns Z-80 bus
+
+// the footswitch is checked in 2 separate places in the ROM code
+
+void z80_patch_footswitch( bool down ) {            // *** CALL ONLY WHEN TEENSY HAS THE BUS
+
+  Serial.printf("foot %s\n", down?"DOWN":"UP");
 
   if( down ) {                                      // override check
-    z80_bus_write( 0x8725, 0x18 );                  // 18 = jr
+    z80_bus_write( 0x8725, 0x18 );                  // 18 = jr            in scan_keys()
 
     footswitch_time = 0;                            // reset clock...
     footswitch_up_time = FOOT_DOWN_TIME_MS;         // ...will raise it at this time in the future
   }
-  else {
-    z80_bus_write( 0x8725, 0x20 );                  // 20 = jr nz
+  else 
+  {
+    z80_bus_write( 0x8725, 0x20 );                  // 20 = jr nz         in scan_keys()
 
-    footswitch_up_time = 0;
+    footswitch_up_time = 0;                         // 0 -> it's already up
+  }
+}
+
+
+
+void z80_seq_ctl( bool state ) {
+
+  if( footswitch_up_time != 0 ) {                   // should not happen
+    Serial.printf("*** footswitch_up_time !- 0 !!!\n");
+    return;
+  }
+
+  teensy_drives_z80_bus( true );                    // *** Teensy owns Z-80 bus
+
+  if( state == Z80_SEQ_START ) {
+    if( !z80_sequencer_running() )                  // if z80 seq not running...
+      z80_patch_footswitch( true );                 // ...start it
+    else
+      Serial.printf("--> Z80 sequencer already running\n");
+  } 
+  else 
+  {
+    if( z80_sequencer_running() )                   // if z80 seq IS running...
+      z80_patch_footswitch( true );                 // ...STOP it
+    else
+      Serial.printf("--> Z80 sequencer already stopped\n");
   }
 
   teensy_drives_z80_bus( false );                   // *** Teensy releases Z-80 bus
@@ -105,8 +133,11 @@ void handle_z80_patches() {
 
   if( (footswitch_up_time > 0) && (footswitch_time >= footswitch_up_time) ) {
       //Serial.printf("foot up\n");
-      z80_patch_footswitch( false );
-      footswitch_up_time = 0;
+    teensy_drives_z80_bus( true );                    // *** Teensy owns Z-80 bus
+    z80_patch_footswitch( false );
+    teensy_drives_z80_bus( false );                   // *** Teensy releases Z-80 bus
+
+    footswitch_up_time = 0;                           // 0 -> it's already up
   }
 
 }               

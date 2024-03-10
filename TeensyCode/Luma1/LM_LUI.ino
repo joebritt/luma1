@@ -175,6 +175,7 @@ char *lui_infos( uint8_t cmd ) {
     case 0x00:  return (char*)"Drum Bitmap";
     case 0x01:  return (char*)"Versions";
     case 0x02:  return (char*)"Bank Name";
+    case 0x03:  return (char*)"Patterns Name";
 
     default:    return (char*)"Unused";
   }
@@ -593,6 +594,11 @@ void draw_idle_display() {
   if( luma_is_playing() == false ) {
     show_top_banner((char*)"Awaiting Tempo Clock");
   }
+
+  if( honorMIDIStartStopState() )
+    show_middle_banner((char*)"MIDI Start ENABLED");
+  else
+    show_middle_banner((char*)"MIDI Start disabled");
 }
 
 
@@ -761,6 +767,13 @@ void handle_local_ui() {
     cmd = 0;                      // a bit of a hack, switching between ACTION and INFO resets cmd to 00, which is valid in both worlds
     entered_num = 0;
     num_digits_entered = 2;
+  }
+
+  // -- handle ON/OFF key
+
+  if( (local_ui_state != LUI_INACTIVE) && (local_ui_state != LUI_CMD_COMPLETE) && (kc == KEY_CHAIN_ON_OFF) ) {
+    honorMIDIStartStop( !honorMIDIStartStopState() );
+    kc = KEY_MENU_LUMA;                                     // fake pressing MENU again
   }
 
   // -- handle normal command entry

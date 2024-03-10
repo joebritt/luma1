@@ -41,6 +41,8 @@ void draw_info_screen( uint8_t c ) {
     case 01:          draw_serial_version_screen();               break;
 
     case 02:          draw_voice_bank_info_screen();              break;
+
+    case 03:          draw_pattern_bank_info_screen();            break;
   }
 }
 
@@ -84,6 +86,24 @@ void draw_voice_bank_info_screen() {
   display.setCursor( 10, 30 );
   display.print( get_cur_bank_name() );
 }
+
+
+/* ================================================================================================================
+   Show current Pattern Bank name
+*/
+
+void draw_pattern_bank_info_screen() {
+  display.setTextSize( 1 );
+  
+  display.setCursor( 10, 0 );
+  display.print( "Current Patterns");
+
+  display.drawLine( 0, 10, 128, 10, SH110X_WHITE );
+
+  display.setCursor( 10, 30 );
+  display.print( "- Coming soon -" );
+}
+
 
 
 

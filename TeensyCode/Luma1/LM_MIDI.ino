@@ -925,16 +925,25 @@ elapsedMicros nextTempoClockEdge;                             // time in the fut
 #define TC_GEN_MIDI_CLK_LO    2                               // check for time to drive it back low, and set up for 48PPQN interpolated clock pulse
 #define TC_GEN_48_CLK_HI      3                               // check for time to drive interpolated 48PPQN clock hi, sets up time to drive low
 #define TC_GEN_48_CLK_LO      4                               // check for time to drive interpolated 48PPQN clock lo, go back to waiting for MIDI CLK
+#define TC_GEN_SKID_STOP      5
+#define TC_GEN_SKIDDING       6
 
 int tc_gen_state = TC_GEN_IDLE;
+
+bool skid_stopping = false;                                   // for MIDI clock sources that are gated by MIDI Start/Stop (not free-running)
+                                                              //  we need to run a couple of clock pulses after "pressing" the footswitch to stop
+                                                              //  or the z80 sequencer wedges looking for a clock pulse before actually stopping
 
 void run_tempo_clock() {
 
   switch( tc_gen_state ) {
-    case TC_GEN_IDLE:         set_tape_sync_clk_gpo( false );                   // we get out of this state when a MIDI clk is received
+    case TC_GEN_IDLE:         set_tape_sync_clk_gpo( false );                   // we get out of this state when a MIDI clk is received...
+                              if( skid_stopping )                               // ...or we are skidding the clock to a stop
+                                tc_gen_state = TC_GEN_SKID_STOP;
                               break;
 
-    
+                              // --- 48ppqn clock generation
+
     case TC_GEN_MIDI_CLK_HI:  set_tape_sync_clk_gpo( true );                    // got a MIDI clk, drive the clock line hi
                               nextTempoClockEdge = 0;                           // init timer to detect when to drop the clock line
                               tc_gen_state = TC_GEN_MIDI_CLK_LO;
@@ -956,12 +965,28 @@ void run_tempo_clock() {
                               
     case TC_GEN_48_CLK_LO:    if( nextTempoClockEdge >= TC_PULSE_TIME ) {       // time to drop it?
                                 set_tape_sync_clk_gpo( false );                 // drop it like it's hot
-                                tc_gen_state = TC_GEN_IDLE;                     // done-zo for this MIDI clock pulse + interpolated clock pulse
+                                if( skid_stopping )
+                                  tc_gen_state = TC_GEN_SKID_STOP;
+                                else
+                                  tc_gen_state = TC_GEN_IDLE;                   // done-zo for this MIDI clock pulse + interpolated clock pulse
+                              }
+                              break;
+
+                              // --- skid the clock to a stop
+
+    case TC_GEN_SKID_STOP:
+                              nextTempoClockEdge = 0;
+                              tc_gen_state = TC_GEN_SKIDDING;
+                              break;
+
+    case TC_GEN_SKIDDING:
+                              if( nextTempoClockEdge >= TC_PULSE_TIME ) {
+                                tc_gen_state = TC_GEN_MIDI_CLK_HI;
+                                skid_stopping = false;
                               }
                               break;
   }
 }
-
 
 
 // -- Called when we get a MIDI Clock
@@ -977,20 +1002,37 @@ void myClock() {
   }
 }
 
+bool honor_start_stop = true;
+
+bool honorMIDIStartStopState() {
+  return honor_start_stop;
+}
+
+bool honorMIDIStartStop( bool honor ) {
+  bool prev = honor_start_stop;
+
+  honor_start_stop = honor;
+
+  Serial.printf("%s honor MIDI Start/Stop messages\n", honor?"Will":"Will NOT");
+
+  return prev;
+}
 
 // -- Called when we get a MIDI Start
 
 void myStart() {
   Serial.println("received MIDI Start");
 
-  sinceLastMIDIClk = 0;
+  if( honor_start_stop ) {
+    sinceLastMIDIClk = 0;
 
-  got_midi_start = true;
+    got_midi_start = true;
 
-  if( !z80_sequencer_running() )                              // if z80 seq not running...
-    z80_patch_footswitch( true );                             // ...start it
-  else
-    Serial.printf("--> Z80 sequencer already running\n");
+    z80_seq_ctl( Z80_SEQ_START );
+  }
+  else {
+    Serial.printf("MIDI Start honor disabled\n");
+  }
 }
 
 
@@ -999,14 +1041,16 @@ void myStart() {
 void myContinue() {
   Serial.println("received MIDI Continue");
 
-  sinceLastMIDIClk = 0;
+  if( honor_start_stop ) {
+    sinceLastMIDIClk = 0;
 
-  got_midi_start = true;                                      // we don't really honor Continue
+    got_midi_start = true;                                    // we don't really honor Continue, we treat it like Start
 
-  if( !z80_sequencer_running() )                              // if z80 seq not running...
-    z80_patch_footswitch( true );                             // ...start it
-  else
-    Serial.printf("--> Z80 sequencer already running\n");
+    z80_seq_ctl( Z80_SEQ_START );
+  }
+  else {
+    Serial.printf("MIDI Start (Continue) honor disabled\n");
+  }
 }
 
 
@@ -1015,15 +1059,16 @@ void myContinue() {
 void myStop() {
   Serial.println("received MIDI Stop");
 
-  got_midi_start = false;                                     // back to waiting for Start
+  if( honor_start_stop ) {
+    got_midi_start = false;                                     // back to waiting for Start
 
-  if( z80_sequencer_running() )                              // if z80 seq IS running...
-    z80_patch_footswitch( true );                             // ...STOP it
-  else
-    Serial.printf("--> Z80 sequencer already stopped\n");
+    z80_seq_ctl( Z80_SEQ_STOP );
 
-  tc_gen_state = TC_GEN_MIDI_CLK_HI;                          // run 1 more pair of clock pulses, otherwise sequencer gets stuck
-  run_tempo_clock();                                          // this will go back to IDLE after generating those pulses
+    skid_stopping = true;                                       // skid the clock to a stop so the z80 seq doesn't freeze
+  }
+  else {
+    Serial.printf("MIDI Stop honor disabled\n");
+  }
 }
 
 

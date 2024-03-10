@@ -32,6 +32,11 @@ void handle_z80_patches();                      // call frequently, handles time
 
 // --- Z80 Sequencer Status & Control
 
+#define Z80_SEQ_START       true
+#define Z80_SEQ_STOP        false
+
+void z80_seq_ctl( bool start );
+
 bool z80_sequencer_running();
 
 void z80_patch_footswitch( bool down );         // simulate a PLAY/STOP footpedal press/release

@@ -90,6 +90,9 @@ void set_midi_clock_in_route( uint8_t r );
 uint8_t get_midi_clock_out_route();
 uint8_t get_midi_clock_in_route();
 
+bool honorMIDIStartStopState();
+bool honorMIDIStartStop( bool honor );
+
 // --- Sysex
 
 void set_midi_sysex_route( uint8_t r );
