@@ -249,6 +249,35 @@ bool eeprom_load_midi_start_honor() {
   return m?true:false;
 }
 
+// --- MONOTONICALLY INCREMENTING NUMBER FOR RAM BANK NAMES
+
+uint16_t eeprom_next_rambank_num() {
+  uint16_t s, n;
+  uint8_t m;
+
+  m = EEPROM.read( LM_EEPROM_RAMBANK_HI );
+  s = m;
+  s <<= 8;
+
+  m = EEPROM.read( LM_EEPROM_RAMBANK_LO );
+  s &= 0xff00;
+  s += (m & 0xff);
+
+  if( s > 9999 )      // they go from 0000 -> 9999, then wrap
+    s = 0;
+
+  n = s + 1;
+  if( n > 9999 )      // they go from 0000 -> 9999, then wrap
+    n = 0;
+
+  EEPROM.write( LM_EEPROM_RAMBANK_LO, (n & 0xff) );
+  EEPROM.write( LM_EEPROM_RAMBANK_HI, (n >> 8) );
+
+  Serial.printf( "RAMBANK number: %04d, next will be %04d\n", s, n);
+
+  return s;
+}
+
 
 // -----------------------------
 // SERIAL NUMBER

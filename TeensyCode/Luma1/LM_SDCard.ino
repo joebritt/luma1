@@ -23,6 +23,7 @@
 
 #include <SD.h>
 #include "LM_SDCard.h"
+#include "LM_EEPROM.h"
 
 /* ---------------------------------------------------------------------------------------
     Files, SD Card
@@ -90,7 +91,8 @@ bool load_z80_rom_file( char *rom_fn ) {
 
 
 void build_rambank_filename( uint8_t bank_num, uint16_t cs, char *fn ) {
-  sprintf( fn, "/RAMBANKS/%02d/RAM_IMAGE_%04X.bin",   bank_num, cs );
+  sprintf( fn, "/RAMBANKS/%02d/RAM_IMAGE_%04d.bin",   bank_num, cs );           // change to monotonically increasing # in filename
+//  sprintf( fn, "/RAMBANKS/%02d/RAM_IMAGE_%04X.bin",   bank_num, cs );
 }
 
 
@@ -106,13 +108,53 @@ uint16_t checksum( uint8_t *d, int len ) {
 }
 
 
+// look for a file, return status.
+// if del == true, delete the file that was found.
+
+bool ram_bank_file_exists( uint8_t banknum, bool del ) {
+  bool r = false;
+
+  Serial.printf("Checking for ram bank file in bank %02d\n", banknum);
+
+  sprintf( fn_buf, "/RAMBANKS/%02d/", banknum );
+
+  root = SD.open( fn_buf );
+  
+  file = root.openNextFile();
+
+  if ( file ) {
+    Serial.printf("### found a ram bank file!\n");
+    r = true;
+
+    if( del ) {
+      Serial.printf("### DELETING that file\n");
+      sprintf( fn_buf, "/RAMBANKS/%02d/%s", banknum, file.name() );
+      Serial.printf("File to delete name = %s\n", fn_buf);
+      SD.remove( fn_buf );
+    }
+  }
+
+  return r;
+}
+
+
 void save_ram_bank( uint8_t banknum ) {
   if( banknum < 100 ) {
     Serial.print("Saving all of Z-80 RAM to SD Card RAMBANK "); Serial.println( banknum );
 
+    // -- clean up any old files in this directory, bound it to 1000 files, should be more than enough
+
+    for( int xxx = 0; xxx != 1000; xxx++ ) {
+      if ( ram_bank_file_exists( banknum, true ) == false )
+        break;
+    }
+
+    // -- now copy the current RAM into what should be an empty RAMBANKS directory
+
     copy_z80_ram( rambuf );
 
-    build_rambank_filename( banknum, checksum(rambuf, 8192), fn_buf );
+    build_rambank_filename( banknum, eeprom_next_rambank_num(), fn_buf );     // next monotonically increasing # for filename
+    //build_rambank_filename( banknum, checksum(rambuf, 8192), fn_buf );
     Serial.println( fn_buf );
     
     if ( file = SD.open( fn_buf, (O_RDWR | O_CREAT | O_TRUNC) ) ) {
@@ -131,6 +173,8 @@ void save_ram_bank( uint8_t banknum ) {
   else
     Serial.println("### RAM bank must be between 00 and 99");
 }
+
+
 
 
 // fetch RAM image from SD or Z-80 RAM into working buffer "rambuf"
