@@ -66,10 +66,14 @@ uint16_t eprom_checksum;
 
 
 void set_eprom_a14( uint16_t addr ) {
-  if( addr & 0x4000 )
+  if( addr & 0x4000 ) {
+    Serial.printf("Setting A14 to 1\n");
     set_LED_SET_2( LED_B );                           // LED_B = A14
-  else
+  }
+  else {
+    Serial.printf("Setting A14 to 0\n");
     clr_LED_SET_2( LED_B );
+  }
 }
 
 
@@ -103,23 +107,15 @@ void dump_eprom_prologue() {
 uint8_t read_eprom_byte( uint16_t addr ) {
   uint8_t b;
 
-  // Need to drive Vpp high
-  
-  if( eprom_size == 2048 )
-    addr |= 0x0800;                                                 // drive Vpp = 1, that pin on 2716 is connected to A11
-
-  if( (eprom_size == 8192) || (eprom_size == 16384) )
-    addr |= 0x4000;                                                 // drive Vpp = 1, that pin on 2764 or 27128 is connected to A14
-
-  set_eprom_a14( addr );                                            // A14, only used on 27256, but Vpp on 2764 and 27128
-  
-  set_eprom_oe( 0 );                                                // /OE = 0
-
   // ----- FROM HERE NO NORMAL Z-80 STYLE ACCESSES
 
-  set_z80_addr( addr );                                             // drive A0-A13
+  // --- Make sure part is deselected
 
   z80_drive_data( false );                                          // Data bus == INPUTS
+
+  set_eprom_ce( 1 );                                                // /CE = 1 (Teensy GPIO)
+
+  set_z80_addr( addr );                                             // setup & drive A0-A13
 
   set_eprom_ce( 0 );                                                // /CE = 0
 
@@ -128,7 +124,6 @@ uint8_t read_eprom_byte( uint16_t addr ) {
   b = get_z80_data();                                               // capture byte from EPROM
 
   set_eprom_ce( 1 );                                                // /CE = 1
-  set_eprom_oe( 1 );                                                // /OE = 1
 
   // ----- FROM HERE BACK TO NORMAL Z-80 STYLE ACCESSES
 
@@ -140,19 +135,68 @@ uint8_t read_eprom_byte( uint16_t addr ) {
 // Call to dump the data AFTER the user has inserted the EPROM
 
 uint8_t *dump_eprom_data() {
+  uint16_t orig_eprom_size;                // EPROM size in bytes
+
   Serial.println("dump eprom worker");
 
   Serial.printf("Dumping %d bytes\n", eprom_size);
 
   eprom_checksum = 0;
 
+  orig_eprom_size = eprom_size;                             // for hack for 32K EPROMs
+
   memset( eprom_dump_buf, 0, 32768 );                       // zero buffer
+
+
+  // --- Need to drive Vpp high
+  //     Also drive the address we are reading
   
+  if( eprom_size == 2048 )
+    addr |= 0x0800;                                                 // drive Vpp = 1, that pin on 2716 is connected to A11
+
+  if( (eprom_size == 8192) || (eprom_size == 16384) )
+    addr |= 0x4000;                                                 // drive Vpp = 1, that pin on 2764 or 27128 is connected to A14
+
+  set_eprom_a14( addr );                                            // A14, only used on 27256, but Vpp on 2764 and 27128
+                                                                    // ---> NOTE! This will run a z-80 bus write cycle (bit in LED reg)
+
+  if( orig_eprom_size == 32768 )                                    // HACK for reading 27256 in 2 halves
+    eprom_size = 16384;
+
+  // --- Read up to 16KB
+
+  set_eprom_oe( 0 );                                                // /OE = 0 ---> NOTE! This will run a z-80 bus write cycle
+
   for( int addr = 0; addr != eprom_size; addr++ ) {
     eprom_dump_buf[addr] = read_eprom_byte( addr );
     eprom_checksum += eprom_dump_buf[addr];
   }
-    
+
+  set_eprom_oe( 1 );                                                // /OE = 1 ---> NOTE! This will run a z-80 bus write cycle
+
+
+  // --- Total hack for 32K EPROM, if 27256 now read UPPER half
+
+  if( orig_eprom_size == 32768 ) {
+    set_eprom_a14( 0x4000 );                                        // A14, only used on 27256, but Vpp on 2764 and 27128
+                                                                    // ---> NOTE! This will run a z-80 bus write cycle (bit in LED reg)
+
+    set_eprom_oe( 0 );                                              // /OE = 0 ---> NOTE! This will run a z-80 bus write cycle
+
+    for( int addr = 0; addr != eprom_size; addr++ ) {
+      eprom_dump_buf[addr+0x4000] = read_eprom_byte( addr );
+      eprom_checksum += eprom_dump_buf[addr+0x4000];
+    }
+
+    set_eprom_oe( 1 );                                              // /OE = 1 ---> NOTE! This will run a z-80 bus write cycle
+  }
+
+  // UNDO the hack
+
+  if( orig_eprom_size == 32768 )                                    // HACK for reading 27256 in 2 halves
+    eprom_size = 32768;
+
+
   for( int xxx = 0; xxx != 16; xxx++ )
     Serial.printf("%02x ", eprom_dump_buf[xxx] );
 

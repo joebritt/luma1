@@ -51,7 +51,7 @@
 */
 
 #define   LUMA1_FW_VERSION_MAJOR    0
-#define   LUMA1_FW_VERSION_MINOR    928
+#define   LUMA1_FW_VERSION_MINOR    929
 
 char serial_number[9];                              // we terminate with 0 so we can use it as a string
 
@@ -213,40 +213,61 @@ void loop_time_critical() {
   // -- MIDI
   
   handle_midi_in();
-  handle_midi_out();
 
-  handle_z80_patches();                             // handles timers that change patch states
+    handle_midi_out();
+
+  handle_midi_in();
+
+    handle_z80_patches();                           // handles timers that change patch states
+
+  handle_midi_in();
 }
 
 
+elapsedMillis oled_update_millis;
+
+#define OLED_UPDATE_TIME_NORM         250
+#define OLED_UPDATE_TIME_LOCAL_UI     50
+
 void loop() {                                       // much effort is put into making sure we receive and process MIDI messages quickly, so nothing should block.
                                                     // --> and we call loop_time_critical() very frequently, as this processes incoming and outgoing MIDI
-    loop_time_critical();
-
-  // -- Local UI -- loading voices, setting MIDI channel, saving/loading RAM, etc.
-
-  handle_local_ui();                                // Teensy-driven UI when STORE button pressed
-                                                    // --> NOTE! Z-80 code masks this button while PLAYing, so it returns quicky in that case.
-
-    loop_time_critical();
-
-  handle_oled_display();                            // if i2c OLED display fitted, update it
-                                                    // --> NOTE! This calls loop_time_critical() while blitting to the display
-
-    loop_time_critical();
-
-  handle_debug_commands();                          // commands over the USB serial port
-                                                    // --> NOTE! This returns quickly if no serial commands received
-
-    loop_time_critical();
-
-  // -- Things to do only if NOT in local ui mode
   
-  if( !in_local_ui() ) {
+  int oled_update_time = OLED_UPDATE_TIME_NORM;     // default, update slowly
+
+  loop_time_critical();
+
+
+  // --- Updating the OLED is slow. Only do it every 250ms UNLESS we are in local ui, then update faster
+
+  if( in_local_ui() )
+    oled_update_time = OLED_UPDATE_TIME_LOCAL_UI;   // we are in local UI mode, make the updates faster
+
+  if( oled_update_millis > oled_update_time ) {
+    handle_oled_display();                          // if i2c OLED display fitted, update it
+                                                    // --> NOTE! This calls loop_time_critical() while blitting to the display
+    oled_update_millis = 0;                                          
+  }
+
+  loop_time_critical();
+
+  // --- Things we do only if the z-80 sequencer is not running
+
+  if( !luma_is_playing() ) {
     
-    // -- Fan
-    
-    handle_fan();                                   // this only takes action (temp measurement, fan control) if Luma is NOT playing.
-                                                    // --> we detect if Luma is playing passively, by looking at whether the tempo clock is running.
-  }  
+    // -- Local UI -- loading voices, setting MIDI channel, saving/loading RAM, etc.
+
+    handle_local_ui();                              // Teensy-driven UI when STORE button pressed
+
+    // -- Commands over the USB serial port
+
+    handle_debug_commands();                        
+
+    // -- Check / Update Fan state
+
+    if( !in_local_ui() ) {      
+      handle_fan();
+    }  
+  }
+
+  loop_time_critical();
 }

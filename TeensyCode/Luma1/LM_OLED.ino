@@ -301,12 +301,21 @@ void luma_oled_display(void) {
         (uint8_t)( 0x00 + (SH1106G_COL_FUDGE & 0xF))    // set lo bybble of col
         };
 
+      loop_time_critical();                             // i2c writes can take a long time
 
     // Send the cmd to set the page
     
     Wire1.beginTransmission( DISP_I2C_ADDR );    
+
+      loop_time_critical();                             // i2c writes can take a long time
+
     Wire1.write( cmd, 4 );
+
+      loop_time_critical();                             // i2c writes can take a long time
+
     Wire1.endTransmission();
+
+      loop_time_critical();                             // i2c writes can take a long time
 
     // Send a page worth of data
 
@@ -319,14 +328,51 @@ void luma_oled_display(void) {
 
     for( int xxx = 0; xxx != (128/16); xxx++ ) {
       Wire1.beginTransmission( DISP_I2C_ADDR );    
+
+        loop_time_critical();                           // i2c writes can take a long time
+
       Wire1.write( 0x40 );                              // D/C = 1 -> sending DATA (not command)
-      Wire1.write( ptr, 16 );
+
+        loop_time_critical();                           // i2c writes can take a long time
+
+      Wire1.write( ptr, 2 );
+        loop_time_critical();                           // i2c writes can take a long time
+      ptr += 2;
+
+      Wire1.write( ptr, 2 );
+        loop_time_critical();                           // i2c writes can take a long time
+      ptr += 2;
+
+      Wire1.write( ptr, 2 );
+        loop_time_critical();                           // i2c writes can take a long time
+      ptr += 2;
+
+       Wire1.write( ptr, 2 );
+        loop_time_critical();                           // i2c writes can take a long time
+      ptr += 2;
+
+      Wire1.write( ptr, 2 );
+        loop_time_critical();                           // i2c writes can take a long time
+      ptr += 2;
+
+      Wire1.write( ptr, 2 );
+        loop_time_critical();                           // i2c writes can take a long time
+      ptr += 2;
+
+      Wire1.write( ptr, 2 );
+        loop_time_critical();                           // i2c writes can take a long time
+      ptr += 2;
+
+       Wire1.write( ptr, 2 );
+        loop_time_critical();                           // i2c writes can take a long time
+      ptr += 2;
+
       Wire1.endTransmission();
 
-      ptr += 16;
+      //ptr += 16;
   
-      loop_time_critical();                             // i2c writes can take a long time
-    }
+        loop_time_critical();                           // i2c writes can take a long time
+   }
     
   }
 }

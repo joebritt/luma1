@@ -570,36 +570,76 @@ bool midi_usb_in_active() {
     handle_midi_in() must be called frequently -- it is what triggers processing of received messages
 */
 
+elapsedMicros midi_in_yield_time;
+
+#define MIDI_IN_YIELD_MICROS    10
+
+#define MIDI_IN_LOOPS_PLAYING   10        // when z-80 sequencer is running
+#define MIDI_IN_LOOPS_IDLE      1         // when z-80 sequencer is stopped
+
 void handle_midi_in() {
+  int run_loops = MIDI_IN_LOOPS_IDLE;
+  int yield_loops;
 
-  // -- see if we need to update the tempo clock pulse generator
+  if( luma_is_playing() )
+    run_loops = MIDI_IN_LOOPS_PLAYING;    // do this for LUI responsiveness when not running z80 sequencer
 
-  run_tempo_clock();
+  for( int loops = 0; loops < run_loops; loops++ ) 
+  {
+    // -- see if we need to update the tempo clock pulse generator
 
+    run_tempo_clock();
+
+    
+    // -- DIN-5 old-skool MIDI
+
+    if( midi_chan == 0 )                // 0 = OMNI
+      midiDIN.read();
+    else
+      midiDIN.read( midi_chan );
+
+
+    // -- see if we need to update the tempo clock pulse generator
+
+    run_tempo_clock();
+
+    
+    // -- modern USB hotness MIDI
   
-  // -- DIN-5 old-skool MIDI
-
-  if( midi_chan == 0 )                // 0 = OMNI
-    midiDIN.read();
-  else
-    midiDIN.read( midi_chan );
-
-  // -- see if we need to update the tempo clock pulse generator
-
-  run_tempo_clock();
-
-  
-  // -- modern USB hotness MIDI
- 
-  if( midi_chan == 0 )                // 0 = OMNI
-    usbMIDI.read();
-  else
-    usbMIDI.read( midi_chan );
+    if( midi_chan == 0 )                // 0 = OMNI
+      usbMIDI.read();
+    else
+      usbMIDI.read( midi_chan );
 
 
-  // -- see if we need to update the tempo clock pulse generator
+    // -- see if we need to update the tempo clock pulse generator
 
-  run_tempo_clock();
+    run_tempo_clock();
+
+    // -- give some breathing time for messages to come in, while yield()'ing
+
+    midi_in_yield_time = 0;
+    yield_loops = 0;
+
+    while( midi_in_yield_time < MIDI_IN_YIELD_MICROS ) {
+      yield();
+      run_tempo_clock();
+
+      yield_loops++;
+      if( yield_loops > 3 ) {
+        
+        if( midi_chan == 0 )                // 0 = OMNI
+          midiDIN.read();
+        else
+          midiDIN.read( midi_chan );
+
+        if( midi_chan == 0 )                // 0 = OMNI
+          usbMIDI.read();
+        else
+          usbMIDI.read( midi_chan );
+      }
+    }
+  }
 }
 
 
@@ -940,6 +980,8 @@ void run_tempo_clock() {
     case TC_GEN_IDLE:         set_tape_sync_clk_gpo( false );                   // we get out of this state when a MIDI clk is received...
                               if( skid_stopping )                               // ...or we are skidding the clock to a stop
                                 tc_gen_state = TC_GEN_SKID_STOP;
+                              
+                              tc_interp_time = TC_PULSE_TIME;                   // default until we have a real tc_interp_time from clocks in
                               break;
 
                               // --- 48ppqn clock generation
@@ -949,7 +991,7 @@ void run_tempo_clock() {
                               tc_gen_state = TC_GEN_MIDI_CLK_LO;
                               break;
     
-    case TC_GEN_MIDI_CLK_LO:  if( nextTempoClockEdge >= TC_PULSE_TIME ) {       // time to drop it?
+    case TC_GEN_MIDI_CLK_LO:  if( nextTempoClockEdge >= (tc_interp_time/2) ) {       // time to drop it?
                                 set_tape_sync_clk_gpo( false );                 // tempo clock = 0
                                 tc_gen_state = TC_GEN_48_CLK_HI;                // go generate the interpolated 48ppqn clock pulse
                               }
@@ -963,7 +1005,7 @@ void run_tempo_clock() {
                               }
                               break;
                               
-    case TC_GEN_48_CLK_LO:    if( nextTempoClockEdge >= TC_PULSE_TIME ) {       // time to drop it?
+    case TC_GEN_48_CLK_LO:    if( nextTempoClockEdge >= (tc_interp_time/2) ) {       // time to drop it?
                                 set_tape_sync_clk_gpo( false );                 // drop it like it's hot
                                 if( skid_stopping )
                                   tc_gen_state = TC_GEN_SKID_STOP;
@@ -992,7 +1034,6 @@ void run_tempo_clock() {
 // -- Called when we get a MIDI Clock
 
 void myClock() {
-
   tc_interp_time = sinceLastMIDIClk / 2;                      // look at time since previous MIDI clk to get period, /2 for midpoint
   sinceLastMIDIClk = 0;
   
