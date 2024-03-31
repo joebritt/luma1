@@ -234,6 +234,22 @@ bool eeprom_load_midi_soft_thru() {
   return m?true:false;
 }
 
+
+// --- MIDI START HONOR
+
+void eeprom_save_midi_start_honor( bool on) {
+  Serial.printf("Saving MIDI Start Honor: %s\n", on?"ENABLED":"disabled");
+  EEPROM.write( LM_EEPROM_MIDI_START_HONOR, on?1:0 );
+}
+
+bool eeprom_load_midi_start_honor() {
+  uint8_t m;
+  m = EEPROM.read( LM_EEPROM_MIDI_START_HONOR );
+  Serial.printf("Loaded MIDI START Honor: %s\n", m?"ENABLED":"disabled" );
+  return m?true:false;
+}
+
+
 // -----------------------------
 // SERIAL NUMBER
 

@@ -159,6 +159,7 @@ char *lui_actions( uint8_t cmd ) {
     case 0x84:  return (char*)"MIDI Clock IN";
     case 0x85:  return (char*)"MIDI SysEx";
     case 0x86:  return (char*)"MIDI Soft Thru";
+    case 0x87:  return (char*)"MIDI Start Enabl";
     case 0x90:  return (char*)"Boot Screen";
     case 0x97:  return (char*)"SD Dir";
     case 0x98:  return (char*)"Format SD";
@@ -370,6 +371,15 @@ char *lui_val_info( uint8_t cmd, uint8_t val, bool val_is_valid ) {
                 switch( val ) {
                   case 00:  return (char*)"off";
                   case 01:  return (char*)"ON";
+                }
+              }
+              break;
+
+    case 87:  show_top_banner( (char*)"MIDI Start Enable " );
+              if( val_is_valid ) {
+                switch( val ) {
+                  case 00:  return (char*)"disabled";
+                  case 01:  return (char*)"ENABLED";
                 }
               }
               break;
@@ -773,6 +783,7 @@ void handle_local_ui() {
 
   if( (local_ui_state != LUI_INACTIVE) && (local_ui_state != LUI_CMD_COMPLETE) && (kc == KEY_CHAIN_ON_OFF) ) {
     honorMIDIStartStop( !honorMIDIStartStopState() );
+    eeprom_save_midi_start_honor( honorMIDIStartStopState() );
     kc = KEY_MENU_LUMA;                                     // fake pressing MENU again
   }
 
@@ -877,6 +888,11 @@ void handle_local_ui() {
 
                         case 86:  valid_range( 0, 1 );                      // off, ON
                                   input_digits_init_preload( (get_midi_soft_thru() ? 1:0) );
+                                  local_ui_state = LUI_GET_VAL;
+                                  break;
+
+                        case 87:  valid_range( 0, 1 );                      // off, ON
+                                  input_digits_init_preload( (honorMIDIStartStopState() ? 1:0) );
                                   local_ui_state = LUI_GET_VAL;
                                   break;
 
@@ -1025,6 +1041,11 @@ void handle_local_ui() {
                           case 86:  Serial.printf("CMD: MIDI Soft Thru %02x\n", val );
                                     set_midi_soft_thru( val ? true:false );
                                     eeprom_save_midi_soft_thru( val ? true:false );
+                                    break;
+
+                          case 87:  Serial.printf("CMD: MIDI Start Enable %02x\n", val );
+                                    honorMIDIStartStop( val ? true:false );
+                                    eeprom_save_midi_start_honor( val ? true:false );
                                     break;
 
                           case 90:  Serial.print("CMD: Boot Screen Select "); Serial.println( val );

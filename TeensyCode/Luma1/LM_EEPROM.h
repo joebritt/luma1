@@ -43,6 +43,7 @@
 #define LM_EEPROM_MIDI_CL_IN        6
 #define LM_EEPROM_MIDI_SYSEX        7
 #define LM_EEPROM_MIDI_SOFT_THRU    8
+#define LM_EEPROM_MIDI_START_HONOR  9
 
 // ... available ...
 
@@ -80,6 +81,10 @@ uint8_t eeprom_load_midi_sysex_route();
 
 void eeprom_save_midi_soft_thru( bool on );
 bool eeprom_load_midi_soft_thru();
+
+void eeprom_save_midi_start_honor( bool on);
+bool eeprom_load_midi_start_honor();
+
 
 // --- Serial #
 

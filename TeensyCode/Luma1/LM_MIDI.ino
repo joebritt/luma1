@@ -58,6 +58,11 @@ uint8_t midi_sysex_route;         // can be DIN5 or USB only
 bool midi_soft_thru;              // initialized from EEPROM
 
 
+// --- HONOR MIDI START/STOP
+
+bool honor_start_stop;            // initialized from EEPROM
+
+
 // --- Updated by key, sequence, or midi drum trigger, selects which sound to load
 
 uint16_t last_drum = STB_BASS;
@@ -150,6 +155,8 @@ void init_midi() {
   set_midi_sysex_route( eeprom_load_midi_sysex_route() );
 
   midi_soft_thru = eeprom_load_midi_soft_thru();
+
+  honor_start_stop = eeprom_load_midi_start_honor();
 
 
   // -- set up the drum voice management (used for NOFs) table
@@ -1043,7 +1050,6 @@ void myClock() {
   }
 }
 
-bool honor_start_stop = true;
 
 bool honorMIDIStartStopState() {
   return honor_start_stop;
