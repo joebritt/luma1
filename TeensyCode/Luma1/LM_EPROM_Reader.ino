@@ -233,7 +233,7 @@ void dump_eprom_epilogue() {
 
   // send to the voice board  
 
-  snprintf( vname, 15, "E_%04X", eprom_checksum );
+  snprintf( vname, 15, "E_%04X.bin", eprom_checksum );
 
   set_voice( eprom_dump_voice, eprom_dump_buf, eprom_size, vname);
 

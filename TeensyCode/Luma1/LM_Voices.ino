@@ -57,14 +57,18 @@ void copy_voice_SD( char *dirname_src, char *dirname_dst ) {
 
     // --- if there is a file at the dest already, delete it
     
-    root = SD.open( dirname_dst );
-    file = root.openNextFile();
+    for( int xxx = 0; xxx != 1000; xxx++ ) {                                  // bound it to 1000 files, should be more than enough
+      root = SD.open( dirname_dst );
+      file = root.openNextFile();
 
-    if( file ) {
-      Serial.printf("Found file %s, deleting\n", file.name() );
-      snprintf( stage_fn, 255, "%s%s", dirname_dst, file.name() );
-      SD.remove( stage_fn );
-      Serial.println("Removed, now saving new one");
+      if( file ) {
+        snprintf( stage_fn, 255, "%s/%s", dirname_dst, file.name() );
+        Serial.printf("Found file %s, deleting %s\n", file.name(), stage_fn );
+        SD.remove( stage_fn );
+        Serial.println("Removed, now saving new one");
+      }
+      else
+        break;
     }
 
     // --- now copy the read in file to the dst directory
@@ -84,9 +88,10 @@ void copy_voice_SD( char *dirname_src, char *dirname_dst ) {
   
   }
   else {
-    Serial.printf("*** ERROR: %s file not found\n", dirname_src );
+    Serial.printf("*** ERROR: %s SOURCE file not found\n", dirname_src );
   }
 
+  Serial.printf("\n");
 }
 
 void store_voice_file( char *voice_name, uint8_t bank_num ) {
@@ -134,7 +139,7 @@ void stage_voice( char *dirname, char *fn, uint8_t *s, int len ) {
   }
 
   sprintf( stage_fn, "%s%s", dirname, fn );
-  Serial.print("Saving to stage: "); Serial.println( stage_fn );
+  Serial.printf("Saving to stage: %s, len = %d\n", stage_fn, len );
   
   file = SD.open( stage_fn, FILE_WRITE );
 
@@ -220,13 +225,15 @@ void set_voice( uint16_t voice, uint8_t *s, int len, char *vname ) {
     case STB_CONGAS:    snprintf( sdir, 32, "/STAGING/CONGA/"   );  loaded_congas_len   = hw_len;     break;
   }
     
-  // --- Store it in STAGING, and store it in the voice sample RAM
+  // --- Store it in STAGING, and copy it to the voice sample RAM
 
   stage_voice( sdir, vname, s, len );                                                 // SD card shadow copy
 
   if( (voice == STB_TOMS) || (voice == STB_CONGAS) ) {                                // always send full 16384 to both CONGA and TOM
     len = 16384;
   }
+
+  Serial.printf("Copying staging file to voice hardware\n");
 
   disable_drum_trig_interrupt();                                     // don't detect drum writes as triggers
   load_voice_prologue( voice );
@@ -394,7 +401,7 @@ void set_sample_length( uint16_t voice, uint8_t len ) {
 }
 
 
-/*﻿
+/*
   --> Assumes Teensy has Z-80 bus
 
   1. PLAY/LOAD = PLAY
