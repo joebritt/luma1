@@ -187,13 +187,13 @@ bool logic_ui_vop( uint8_t lastkey, int operation_select ) {
                             break;
     
     case VOP_COPY:          Serial.printf("VOP Copy %04x to %04x\n", vop_start_voice, vop_target_voice);
-                            v = get_voice( 0xff, vop_start_voice, vop_textbuf, &vlen );
+                            v = get_voice( BANK_STAGING, vop_start_voice, vop_textbuf, &vlen );
                             set_voice( vop_target_voice, v, vlen, vop_textbuf );
                             vop_state = VOP_FINISHED;
                             break;
     
     case VOP_REVERSE:       Serial.printf("VOP Reverse %04x to %04x\n", vop_start_voice, vop_target_voice);
-                            v = get_voice( 0xff, vop_start_voice, vop_textbuf, &vlen );
+                            v = get_voice( BANK_STAGING, vop_start_voice, vop_textbuf, &vlen );
                             reverse_buffer( v, vlen );
                             set_voice( vop_target_voice, v, vlen, vop_textbuf );
                             vop_state = VOP_FINISHED;

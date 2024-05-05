@@ -51,7 +51,7 @@
 */
 
 #define   LUMA1_FW_VERSION_MAJOR    0
-#define   LUMA1_FW_VERSION_MINOR    932
+#define   LUMA1_FW_VERSION_MINOR    933
 
 char serial_number[9];                              // we terminate with 0 so we can use it as a string
 
@@ -156,7 +156,7 @@ void setup() {
     // ===============================
     // --- Load initial sounds
   
-    load_voice_bank( voice_load_bm, 0 );              // XXX TODO - store & restore boot bank
+    load_voice_bank( voice_load_bm, BANK_STAGING );   // Load last loaded bank
       
     teensy_drives_z80_bus( false );                   // *** Teensy releases Z-80 bus
 

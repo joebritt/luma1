@@ -38,11 +38,11 @@ void draw_info_screen( uint8_t c ) {
     case 00:
     case CMD_INVALID: draw_drum_bitmap();                         break;
 
-    case 01:          draw_serial_version_screen();               break;
+    case 01:          draw_voice_bank_info_screen();              break;
 
-    case 02:          draw_voice_bank_info_screen();              break;
+    case 02:          draw_pattern_bank_info_screen();            break;
 
-    case 03:          draw_pattern_bank_info_screen();            break;
+    case 03:          draw_serial_version_screen();               break;
   }
 }
 

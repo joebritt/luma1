@@ -61,6 +61,7 @@ void load_voice_prologue( uint16_t v );
 void load_voice_epilogue( uint16_t v );
 
 void stage_voice( char *dirname, char *fn, uint8_t *s, int len );
+void stage_bank_name( uint8_t cur_bank_num );
 
 void load_voice( uint16_t voice, uint8_t *s, int len );
 
@@ -81,6 +82,8 @@ uint8_t *get_voice( uint8_t bank_num, uint16_t voice, char *voice_name, int *voi
 #define BANK_LOAD_CABASA    0x0200
 
 #define BANK_LOAD_ALL       0x03ff
+
+#define BANK_STAGING        0xff            // pass in for bank # to reference STAGING bank
 
 void build_voice_filename( uint16_t voice, uint8_t bank_num, char *fn );
 
