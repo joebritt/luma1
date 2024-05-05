@@ -1594,6 +1594,8 @@ void sysex_sample_load( uint8_t *se, int len ) {
                   &sysex_decode_buf[SYSEX_HEADER_SIZE], (len - SYSEX_HEADER_SIZE), vname );               // load into selected drum
   }
 
+  voice_bank_dirty( true );
+  
   sysex_load_epilogue();                                                                                  // release the bus
 }
 

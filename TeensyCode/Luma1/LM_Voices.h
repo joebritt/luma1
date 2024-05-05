@@ -96,4 +96,8 @@ char *get_sd_voice_bank_name( uint8_t bank_num );
 
 char *get_cur_bank_name();
 
+void set_bank_name( uint8_t bank_num, char *name );
+
+void voice_bank_dirty( bool d );
+
 #endif

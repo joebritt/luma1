@@ -33,6 +33,9 @@ char stage_fn[256];
 
 char src_fn[64];
 
+bool vbank_dirty = false;
+
+
 void copy_voice_SD( char *dirname_src, char *dirname_dst ) {
   Serial.printf("Copying %s -> %s\n", dirname_src, dirname_dst );
 
@@ -175,23 +178,27 @@ void delete_and_copy( char *dst, char *src, char *default_data, int default_len 
 
   // -- now copy the src file to the dst location
 
-  file = SD.open( src );                              // read in the src
-
   filesize = 0;
 
-  if( file ) {
-    filesize = file.size();
+  if( src ) {                                         // pass in NULL to always use default_data
+    file = SD.open( src );                            // read in the src
 
-    if( filesize > 32768 )
-      filesize = 32768;
-    
-    Serial.printf("src filesize = %d\n", filesize);
+    if( file ) {
+      filesize = file.size();
 
-    memset( filebuf, 0, filesize );
-    
-    file.read( filebuf, filesize );         
-    file.close();
+      if( filesize > 32768 )
+        filesize = 32768;
+      
+      Serial.printf("src filesize = %d\n", filesize);
+
+      memset( filebuf, 0, filesize );
+      
+      file.read( filebuf, filesize );         
+      file.close();
+    }
   }
+  else
+    Serial.printf("src = NULL, using default data\n");
 
   file = SD.open( dst, FILE_WRITE );                  // write to the dst
 
@@ -299,9 +306,9 @@ void set_voice( uint16_t voice, uint8_t *s, int len, char *vname ) {
     case STB_CONGAS:    snprintf( sdir, 32, "/STAGING/CONGA/"   );  loaded_congas_len   = hw_len;     break;
   }
 
-  if( cur_bank_num != BANK_STAGING ) {                              // are we loading from STAGING?
+  //if( cur_bank_num != BANK_STAGING ) {                              // are we loading from STAGING?
     stage_voice( sdir, vname, s, len );                             // store SD card shadow copy
-}
+  //}
 
   // --- Store it in STAGING, and copy it to the voice sample RAM
 
@@ -792,6 +799,18 @@ char *get_bank_name( uint8_t bank_num ) {
 }
 
 
+void set_bank_name( uint8_t bank_num, char *name ) {
+
+  Serial.printf("Setting Bank %02d name to %s\n", bank_num, name);
+  if( bank_num == BANK_STAGING )
+    sprintf( src_fn, "/STAGING/BANKNAME.TXT" );
+  else
+    sprintf( src_fn, "/DRMBANKS/%02d/BANKNAME.TXT", bank_num );
+
+  delete_and_copy( src_fn, 0, name, strlen(name) );
+}
+
+
 /*
     Voice Banks have a 2-digit decimal name, 00-99, which is their BANK NUMBER.
     This is so we can access them easily with the number keys on the LM-1's control panel, and show the bank # on the LED display.
@@ -823,9 +842,20 @@ char *get_sd_voice_bank_name( uint8_t bank_num ) {
 }
 
 char *get_cur_bank_name() {
-  return get_sd_voice_bank_name( cur_bank_num );
+  char *n = get_sd_voice_bank_name( cur_bank_num );
+
+  if( vbank_dirty ) {
+    src_fn[0] = '*';
+    memcpy( src_fn+1, n, strlen(n)+1 );
+    memcpy( n, src_fn, strlen(src_fn)+1 );
+  }
+
+  return n;
 }
 
+void voice_bank_dirty( bool d ) {
+  vbank_dirty = d;
+}
 
 
 void load_voice_bank( uint16_t voice_selects, uint8_t bank_num ) {
@@ -855,6 +885,8 @@ void load_voice_bank( uint16_t voice_selects, uint8_t bank_num ) {
     enable_drum_trig_interrupt();
 
   stage_bank_name( bank_num );              // if there is a BANKNAME.TXT, copy it to STAGING
+
+  voice_bank_dirty( false );
 }
 
 
