@@ -1044,7 +1044,7 @@ void myClock() {
   tc_interp_time = sinceLastMIDIClk / 2;                      // look at time since previous MIDI clk to get period, /2 for midpoint
   sinceLastMIDIClk = 0;
   
-  if( got_midi_start ) {
+  if( got_midi_start || !honorMIDIStartStopState() ) {
     tc_gen_state = TC_GEN_MIDI_CLK_HI;
     run_tempo_clock();
   }
