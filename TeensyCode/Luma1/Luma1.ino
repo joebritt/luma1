@@ -51,7 +51,7 @@
 */
 
 #define   LUMA1_FW_VERSION_MAJOR    0
-#define   LUMA1_FW_VERSION_MINOR    935
+#define   LUMA1_FW_VERSION_MINOR    936
 
 char serial_number[9];                              // we terminate with 0 so we can use it as a string
 
@@ -253,7 +253,6 @@ void loop() {                                       // much effort is put into m
   // --- Things we do only if the z-80 sequencer is not running
 
   if( !luma_is_playing() ) {
-    
     // -- Local UI -- loading voices, setting MIDI channel, saving/loading RAM, etc.
 
     handle_local_ui();                              // Teensy-driven UI when STORE button pressed

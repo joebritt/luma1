@@ -101,7 +101,7 @@ void z80_patch_footswitch( bool down ) {            // *** CALL ONLY WHEN TEENSY
 void z80_seq_ctl( bool state ) {
 
   if( footswitch_up_time != 0 ) {                   // should not happen
-    Serial.printf("*** footswitch_up_time !- 0 !!!\n");
+    //Serial.printf("*** footswitch_up_time != 0 !!!\n");
     return;
   }
 
@@ -110,15 +110,15 @@ void z80_seq_ctl( bool state ) {
   if( state == Z80_SEQ_START ) {
     if( !z80_sequencer_running() )                  // if z80 seq not running...
       z80_patch_footswitch( true );                 // ...start it
-    else
-      Serial.printf("--> Z80 sequencer already running\n");
+    //else
+    //  Serial.printf("--> Z80 sequencer already running\n");
   } 
   else 
   {
     if( z80_sequencer_running() )                   // if z80 seq IS running...
       z80_patch_footswitch( true );                 // ...STOP it
-    else
-      Serial.printf("--> Z80 sequencer already stopped\n");
+    //else
+    //  Serial.printf("--> Z80 sequencer already stopped\n");
   }
 
   teensy_drives_z80_bus( false );                   // *** Teensy releases Z-80 bus

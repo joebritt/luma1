@@ -126,6 +126,7 @@ void mySystemExclusiveChunk(const byte *d, uint16_t len, bool last);
 // manage the TAPE_SYNC_CLK signal
 
 void set_tape_sync_clk_gpo( bool state );           // drive it hi or lo
+bool get_tape_sync_clk_gpo();                       // return current state
 
 
 // clock work

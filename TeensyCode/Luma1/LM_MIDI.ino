@@ -37,10 +37,6 @@ MIDI_CREATE_INSTANCE(HardwareSerial, HW_MIDI, midiDIN);
 #define TXINV_FORCE               0x10000000        // TXINV bit to set
 
 
-// --- MIDI Clock -> Tempo Clock Pulse generation
-
-void run_tempo_clock();
-
 
 // --- MIDI interface routing
 
@@ -592,23 +588,13 @@ void handle_midi_in() {
     run_loops = MIDI_IN_LOOPS_PLAYING;    // do this for LUI responsiveness when not running z80 sequencer
 
   for( int loops = 0; loops < run_loops; loops++ ) 
-  {
-    // -- see if we need to update the tempo clock pulse generator
-
-    run_tempo_clock();
-
-    
+  {    
     // -- DIN-5 old-skool MIDI
 
     if( midi_chan == 0 )                // 0 = OMNI
       midiDIN.read();
     else
       midiDIN.read( midi_chan );
-
-
-    // -- see if we need to update the tempo clock pulse generator
-
-    run_tempo_clock();
 
     
     // -- modern USB hotness MIDI
@@ -619,10 +605,6 @@ void handle_midi_in() {
       usbMIDI.read( midi_chan );
 
 
-    // -- see if we need to update the tempo clock pulse generator
-
-    run_tempo_clock();
-
     // -- give some breathing time for messages to come in, while yield()'ing
 
     midi_in_yield_time = 0;
@@ -630,7 +612,6 @@ void handle_midi_in() {
 
     while( midi_in_yield_time < MIDI_IN_YIELD_MICROS ) {
       yield();
-      run_tempo_clock();
 
       yield_loops++;
       if( yield_loops > 3 ) {
@@ -925,8 +906,6 @@ void handle_midi_out() {
      
 */
 
-bool got_midi_start = false;
-
 /* ---------------------------------------------------------------------------------------
     Manage the TAPE_SYNC_MODE_CLK signal
 
@@ -944,111 +923,117 @@ void set_tape_sync_clk_gpo( bool state ) {
   digitalWriteFast( DECODED_TAPE_SYNC_CLK, state );
 }
 
+bool get_tape_sync_clk_gpo() {
+  return digitalReadFast( DECODED_TAPE_SYNC_CLK );
+}
 
 
 /* ---------------------------------------------------------------------------------------
     MIDI Clock time calculation
 */
 
-uint32_t tc_interp_time;
+elapsedMicros sinceLastMIDIClk;         // use this to keep track of time since previous MIDI clk
 
-elapsedMicros sinceLastMIDIClk;                               // use this to keep track of time since previous MIDI clk
+elapsedMicros sinceMIDIStart;           // used to detect if quick or slower MIDI Clock after MIDI Start
 
-elapsedMicros nextTempoClockEdge;                             // time in the future we need to generate the next edge
+IntervalTimer tempoTimer;               // interrupt-driven timer to generate tempo clock pulses
+
+bool tempo_clock_state;
+
+int tempo_clock_count;
+
+bool started = false;
+
+bool first_tempo_clock = false;
+
+uint32_t last_time;
 
 
-#define TC_PULSE_TIME         3800                            // tempo clock pulse width, in uS
-                                                              // NOTE: THIS WAS CHOSEN CAREFULLY. 
-                                                              //       LM-1 max tempo is around 160 bpm, this is limited by the Z-80 processing time.
-                                                              //       At 160 bpm, 1 beat = 375ms. 24 MIDI Clocks / beat --> 375ms/beat / 24clocks/beat = 15.625 ms/clock.
-                                                              //       We have to generate another clock in between each MIDI Clock, since the LM-1 expects 48 clocks/beat.
-                                                              //       So we will get to 15.625ms / 2 --> 7.8125 ms/clock. 
-                                                              //       There is a high and low part to each clock. 7.8125 ms/clock / 2 = 3.9 ms high, 3.9 ms low.
-                                                              //       3.8ms is the shortest pulse time I see on my LM-1, so I use that here. 
-                                                              //       This is fat enough for the Z-80 to catch.
+void tempo_clock_output() {                               // INTERRUPT CONTEXT, be careful, don't do too much
+  if( tempo_clock_count < 3 ) {                           // EDGES 2, 3, 4
 
-#define TC_GEN_IDLE           0                               // no tempo clock pulse, drive line low
-#define TC_GEN_MIDI_CLK_HI    1                               // got an 0xf8 MIDI clk, drive high, set up time to drive back low
-#define TC_GEN_MIDI_CLK_LO    2                               // check for time to drive it back low, and set up for 48PPQN interpolated clock pulse
-#define TC_GEN_48_CLK_HI      3                               // check for time to drive interpolated 48PPQN clock hi, sets up time to drive low
-#define TC_GEN_48_CLK_LO      4                               // check for time to drive interpolated 48PPQN clock lo, go back to waiting for MIDI CLK
-#define TC_GEN_SKID_STOP      5
-#define TC_GEN_SKIDDING       6
+    tempo_clock_state = !tempo_clock_state;               // just flip it
 
-int tc_gen_state = TC_GEN_IDLE;
+    if( started )                                         // normally hold tempo clock high until we get our first MIDI clock
+      set_tape_sync_clk_gpo( tempo_clock_state );         // we are running, let it wiggle
+    else
+      set_tape_sync_clk_gpo( false );                     // inverted, this holds it high
 
-bool skid_stopping = false;                                   // for MIDI clock sources that are gated by MIDI Start/Stop (not free-running)
-                                                              //  we need to run a couple of clock pulses after "pressing" the footswitch to stop
-                                                              //  or the z80 sequencer wedges looking for a clock pulse before actually stopping
+    tempo_clock_count++;
+                                                          // total hacks, Ableton sometimes shortens the MIDI clock period -- a lot!
+                                                          // these hacks squeeze things to add more room for error in the 24ppqn clocks
 
-void run_tempo_clock() {
-
-  switch( tc_gen_state ) {
-    case TC_GEN_IDLE:         set_tape_sync_clk_gpo( false );                   // we get out of this state when a MIDI clk is received...
-                              if( skid_stopping )                               // ...or we are skidding the clock to a stop
-                                tc_gen_state = TC_GEN_SKID_STOP;
-                              
-                              tc_interp_time = TC_PULSE_TIME;                   // default until we have a real tc_interp_time from clocks in
-                              break;
-
-                              // --- 48ppqn clock generation
-
-    case TC_GEN_MIDI_CLK_HI:  set_tape_sync_clk_gpo( true );                    // got a MIDI clk, drive the clock line hi
-                              nextTempoClockEdge = 0;                           // init timer to detect when to drop the clock line
-                              tc_gen_state = TC_GEN_MIDI_CLK_LO;
-                              break;
-    
-    case TC_GEN_MIDI_CLK_LO:  if( nextTempoClockEdge >= (tc_interp_time/2) ) {       // time to drop it?
-                                set_tape_sync_clk_gpo( false );                 // tempo clock = 0
-                                tc_gen_state = TC_GEN_48_CLK_HI;                // go generate the interpolated 48ppqn clock pulse
-                              }
-                              break;
-
-    
-    case TC_GEN_48_CLK_HI:    if( sinceLastMIDIClk >= tc_interp_time ) {        // time to make the fake tempo clock pulse?
-                                set_tape_sync_clk_gpo( true );                  // yep, drive the clock line hi
-                                nextTempoClockEdge = 0;                         // init timer to detect when to drop the clock line
-                                tc_gen_state = TC_GEN_48_CLK_LO;
-                              }
-                              break;
-                              
-    case TC_GEN_48_CLK_LO:    if( nextTempoClockEdge >= (tc_interp_time/2) ) {       // time to drop it?
-                                set_tape_sync_clk_gpo( false );                 // drop it like it's hot
-                                if( skid_stopping )
-                                  tc_gen_state = TC_GEN_SKID_STOP;
-                                else
-                                  tc_gen_state = TC_GEN_IDLE;                   // done-zo for this MIDI clock pulse + interpolated clock pulse
-                              }
-                              break;
-
-                              // --- skid the clock to a stop
-
-    case TC_GEN_SKID_STOP:
-                              nextTempoClockEdge = 0;
-                              tc_gen_state = TC_GEN_SKIDDING;
-                              break;
-
-    case TC_GEN_SKIDDING:
-                              if( nextTempoClockEdge >= TC_PULSE_TIME ) {
-                                tc_gen_state = TC_GEN_MIDI_CLK_HI;
-                                skid_stopping = false;
-                              }
-                              break;
+    if( tempo_clock_count == 2 )
+      tempoTimer.begin( tempo_clock_output, last_time*0.7 );    // shorten the second pulse 30%
   }
+  else
+    tempoTimer.end();
+}
+
+
+void init_tempo_clock_timer( uint32_t t, bool first_clock ) {
+  tempoTimer.end();
+
+  /*
+      SOME NOTES
+
+      LM-1 internal tempo clock runs from 35bpm to 165bpm.
+
+      We have tested this with tempos (driven from Ableton) of 30bpm to 150bpm, above 150bpm you lose enough time for the z80 to process.
+
+  */
+
+  if( t > 50000 ) {                                       // if it's so big it looks like we haven't been getting clocks...
+    t = 3500;                                             // ...fake it with something fast enough to fit, but not too fast
+  }
+
+  //Serial.printf("init: --> %d\n", t);
+
+  sinceLastMIDIClk = 0;                                   // time to start a new measurement
+
+  if( first_clock && (sinceMIDIStart > (t+1000)) ) {      // first one, AND more than 1/4 period between MIDI Clocks passed (with 1ms fudge)?
+   tempo_clock_state = false;                             // inverted, drive tempo clock HIGH for first MIDI clock
+   tempo_clock_count = 1;                                 // only 3 edges for the first clock
+  }
+  else {
+    tempo_clock_state = true;                             // inverted, drive tempo clock LOW for subsequent MIDI clocks
+    tempo_clock_count = 0;
+  }
+
+  if( first_clock ) {
+   first_tempo_clock = false;                             // first one is special
+  }
+
+  if( started )
+    set_tape_sync_clk_gpo( tempo_clock_state );           // start in known state at each new MIDI clock, EDGE 1 of 4 (or 3, for first one)
+
+  last_time = t;
+
+  tempoTimer.begin( tempo_clock_output, t );              // we will do 4 (3 for first one) tempo clock flips between each MIDI clock message
+  tempoTimer.priority( 0 );                               // highest priority
 }
 
 
 // -- Called when we get a MIDI Clock
 
-void myClock() {
-  tc_interp_time = sinceLastMIDIClk / 2;                      // look at time since previous MIDI clk to get period, /2 for midpoint
-  sinceLastMIDIClk = 0;
-  
-  if( got_midi_start || !honorMIDIStartStopState() ) {
-    tc_gen_state = TC_GEN_MIDI_CLK_HI;
-    run_tempo_clock();
-  }
+/*
+  NOTE! MIDI Start means start the sequencer at the NEXT MIDI CLOCK.
+        Since we double the MIDI Clock to 48ppqn, we need to make sure we only start it (push the footpedal)
+         on a MIDI Clock boundary (not an interpolated 48ppqn clock pulse).
+
+
+  Hold tempo clock HIGH
+  Get MIDI Start
+    Drop tempo clock
+  Get MIDI Clock
+    Raise tempo clock
+    Drive tempo clock with interpolated MIDI clock timing
+*/
+
+void myClock() {  
+  init_tempo_clock_timer( sinceLastMIDIClk/4, first_tempo_clock );
 }
+
 
 
 bool honorMIDIStartStopState() {
@@ -1065,20 +1050,42 @@ bool honorMIDIStartStop( bool honor ) {
   return prev;
 }
 
+
+
 // -- Called when we get a MIDI Start
+
+/*
+    When we get a MIDI Start, the NEXT MIDI CLOCK marks the initial downbeat.
+
+    BUT! We are generating 2 LM-1 clocks for each MIDI Clock.
+
+    We need to wait for the next MIDI Clock to actually start the LM-1 sequencer.
+
+    MIDI Clock  1000 1000 1000
+    LM-1 Clock  1010 1010 1010
+*/
 
 void myStart() {
   Serial.println("received MIDI Start");
 
-  if( honor_start_stop ) {
-    sinceLastMIDIClk = 0;
+  if( !started ) {                                          // if we hadn't started yet
+    if( honorMIDIStartStopState() ) {
+      Serial.printf("Honoring MIDI Start, pressing foot pedal\n");
+      z80_seq_ctl( Z80_SEQ_START );                           // simulate foot pedal press
+    }
 
-    got_midi_start = true;
+    tempoTimer.end();                                       // make sure this isn't running
 
-    z80_seq_ctl( Z80_SEQ_START );
+    tempo_clock_state = true;                               // inverted, drive tempo clock LOW when we get MIDI Start
+    set_tape_sync_clk_gpo( tempo_clock_state );
+
+    started = true;                                         // now we've started
+    sinceMIDIStart = 0;                                     // used to figure out how much time has passed by first MIDI Clock
+
+    first_tempo_clock = true;                               // first tempo clock is funny, just 3 edges
   }
   else {
-    Serial.printf("MIDI Start honor disabled\n");
+    Serial.println("DUPLICATE MIDI Start, ignoring");
   }
 }
 
@@ -1086,18 +1093,19 @@ void myStart() {
 // -- Called when we get a MIDI Continue
 
 void myContinue() {
+/*
   Serial.println("received MIDI Continue");
 
   if( honor_start_stop ) {
-    sinceLastMIDIClk = 0;
 
-    got_midi_start = true;                                    // we don't really honor Continue, we treat it like Start
+    got_midi_start = true;                              // we don't really honor Continue, we treat it like Start
 
-    z80_seq_ctl( Z80_SEQ_START );
+    z80_seq_ctl( Z80_SEQ_START );                       // simulate foot pedal press
   }
   else {
     Serial.printf("MIDI Start (Continue) honor disabled\n");
   }
+*/
 }
 
 
@@ -1106,15 +1114,22 @@ void myContinue() {
 void myStop() {
   Serial.println("received MIDI Stop");
 
-  if( honor_start_stop ) {
-    got_midi_start = false;                                     // back to waiting for Start
+  if( started ) {
+    first_tempo_clock = false;                          // shouldn't need to do this, but it doesn't hurt (in case we got no MIDI clocks)
 
-    z80_seq_ctl( Z80_SEQ_STOP );
+    if( honorMIDIStartStopState() ) {
+      Serial.printf("Honoring MIDI Stop, pressing foot pedal\n");
+      z80_seq_ctl( Z80_SEQ_STOP );                      // simulate foot pedal press
 
-    skid_stopping = true;                                       // skid the clock to a stop so the z80 seq doesn't freeze
+      init_tempo_clock_timer( 18000/4, false );
+      delay( 100 );
+      tempoTimer.end();                                       // make sure this isn't running
+    }
+    
+    started = false;                                    // now we've stopped
   }
   else {
-    Serial.printf("MIDI Stop honor disabled\n");
+    Serial.println("DUPLICATE MIDI Stop, ignoring");
   }
 }
 
