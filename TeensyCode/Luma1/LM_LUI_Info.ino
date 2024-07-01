@@ -84,6 +84,12 @@ void draw_voice_bank_info_screen() {
   display.drawLine( 0, 10, 128, 10, SH110X_WHITE );
 
   display.setCursor( 10, 30 );
+  display.print( "Voice Bank # " );
+  display.setCursor( 85, 30 );
+  sprintf( systxt, "%02d", get_orig_bank_num() );
+  display.print( systxt );
+
+  display.setCursor( 10, 45 );
   display.print( get_cur_bank_name() );
 }
 

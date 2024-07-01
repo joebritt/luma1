@@ -23,9 +23,10 @@
     POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "LM_SDCard.h"
 #include "LM_Voices.h"
 
-uint16_t voice_load_bm = BANK_LOAD_ALL;
+uint16_t voice_load_bm = BANK_LOAD_ALL;             // bitmap selects which voices will be loaded/stored
 
 uint8_t cur_bank_num = 0;
 
@@ -34,6 +35,16 @@ char stage_fn[256];
 char src_fn[64];
 
 bool vbank_dirty = false;
+
+// We maintain some state in these STAGING files
+
+#define STAGING_ORIG_BANKNUM_FN     "/STAGING/ORIGBNUM.BIN"
+#define STAGING_BANKNAME_FN         "/STAGING/BANKNAME.TXT"
+#define STAGING_DEFAULT_BANKNAME    "NO BANK NAME"
+
+
+uint8_t *get_voice_file( char *dirname, char *voice_name, int *voice_len );
+
 
 
 void copy_voice_SD( char *dirname_src, char *dirname_dst ) {
@@ -97,6 +108,8 @@ void copy_voice_SD( char *dirname_src, char *dirname_dst ) {
   Serial.printf("\n");
 }
 
+
+
 void store_voice_file( char *voice_name, uint8_t bank_num ) {
   char srcname[48];
   char dstname[48];
@@ -106,6 +119,7 @@ void store_voice_file( char *voice_name, uint8_t bank_num ) {
   
   copy_voice_SD( srcname, dstname );
 }
+
 
 /*
     set_voice() loads voice data into a voice board, but also saves that voice data to a corresponding file
@@ -156,82 +170,48 @@ void stage_voice( char *dirname, char *fn, uint8_t *s, int len ) {
 }
 
 
-// Delete the SD card file at dst, if it exists.
-// Then copy the file at src to the filename dst.
-// If src doesn't exist, copy default_len bytes from default_data[] to dst.
-
-void delete_and_copy( char *dst, char * src, char *default_data, int default_len );
-
-void delete_and_copy( char *dst, char *src, char *default_data, int default_len ) {
-
-  Serial.printf("Delete and Copy: %s -> %s\n", src, dst);
-
-  // -- if the dst file exists, delete it
-
-  file = SD.open( dst );
-
-  if( file ) {
-    Serial.printf("Found %s, deleting it\n", dst);
-    file.close();
-    SD.remove( dst );
-  }
-
-  // -- now copy the src file to the dst location
-
-  filesize = 0;
-
-  if( src ) {                                         // pass in NULL to always use default_data
-    file = SD.open( src );                            // read in the src
-
-    if( file ) {
-      filesize = file.size();
-
-      if( filesize > 32768 )
-        filesize = 32768;
-      
-      Serial.printf("src filesize = %d\n", filesize);
-
-      memset( filebuf, 0, filesize );
-      
-      file.read( filebuf, filesize );         
-      file.close();
-    }
-  }
-  else
-    Serial.printf("src = NULL, using default data\n");
-
-  file = SD.open( dst, FILE_WRITE );                  // write to the dst
-
-  if( file ) {
-    if( filesize )
-      file.write( filebuf, filesize );
-    else
-      file.write( default_data, default_len );
-
-    file.close();
-  }
-  else {
-    Serial.printf("### Error, could not open %s file for writing.\n", dst);
-  }
-}
-
-
 // if there is a BANKNAME.TXT, move it to STAGING
 
 void stage_bank_name( uint8_t bank_num ) {
-  char *name;
 
   if( bank_num != BANK_STAGING ) {
 
     sprintf( src_fn, "/DRMBANKS/%02d/BANKNAME.TXT", bank_num );
 
-    delete_and_copy( "/STAGING/BANKNAME.TXT", src_fn, "NO BANK NAME", strlen("NO BANK NAME") );
-
+    delete_and_copy( STAGING_BANKNAME_FN, src_fn, STAGING_DEFAULT_BANKNAME, strlen(STAGING_DEFAULT_BANKNAME) );
+ 
     Serial.printf("Staged bank name: %s\n", get_sd_voice_bank_name( BANK_STAGING ));
   }
   else
-    Serial.printf("stage_bank_name: bank passed in IS staging\n");
+    Serial.printf("stage_bank_name: bank passed in IS staging - %s\n", get_sd_voice_bank_name( BANK_STAGING ));
 }     
+
+
+uint8_t get_orig_bank_num() {
+  uint8_t num = 0x7f;                   // error value
+
+  file = SD.open( STAGING_ORIG_BANKNUM_FN );
+
+  if( file ) {
+    file.read( &num, 1 );
+  }
+
+  return num;
+}
+
+
+void stage_bank_num( uint8_t bank_num ) {
+
+  if( bank_num != BANK_STAGING ) {
+
+    replace_file( STAGING_ORIG_BANKNUM_FN, &bank_num, 1 );
+
+    Serial.printf("Staged Original Bank Number: %02d\n\n", get_orig_bank_num());
+  }
+  else
+    Serial.printf("stage_bank_num: bank passed in IS staging - %02d\n\n", get_orig_bank_num());
+} 
+
 
 
 // currently loaded voice sizes
@@ -277,7 +257,7 @@ void set_voice( uint16_t voice, uint8_t *s, int len, char *vname ) {
   char sdir[64];
 
   Serial.printf("set_voice(): %04X, %d bytes, %s\n", voice, len, vname);
-  Serial.printf("cga: %d, tom: %d\n", loaded_congas_len, loaded_toms_len );
+  //Serial.printf("cga: %d, tom: %d\n", loaded_congas_len, loaded_toms_len );
   
   uint8_t hw_len = SAMPLE_LEN_32K;
   
@@ -460,7 +440,7 @@ void set_sample_length( uint16_t voice, uint8_t len ) {
   set_load_data_and_clock( len&0x03 );      // this will pulse the addr clock to the voice boards,
                                             //  but the trig_voice() call below will reset them.
 
-  Serial.print("Set Load Data to: "); Serial.println( len&0x03, HEX );
+  //Serial.print("Set Load Data to: "); Serial.println( len&0x03, HEX );
 
   // 2. Set PLAY/LOAD = 0 (LOAD) and /VOICE_WR = 0
 
@@ -480,7 +460,7 @@ void set_sample_length( uint16_t voice, uint8_t len ) {
   
   set_play_load( kPLAY );
 
-  Serial.print("Set voice "); print_voice_name( voice ); Serial.print(" to len "); Serial.println(len);
+  //Serial.print("Set voice "); print_voice_name( voice ); Serial.print(" to len "); Serial.println(len);
 }
 
 
@@ -778,7 +758,7 @@ char *get_bank_name( uint8_t bank_num );
 char *get_bank_name( uint8_t bank_num ) {
   
   if( bank_num == BANK_STAGING )
-    sprintf( src_fn, "/STAGING/BANKNAME.TXT" );
+    sprintf( src_fn, STAGING_BANKNAME_FN );
   else
     sprintf( src_fn, "/DRMBANKS/%02d/BANKNAME.TXT", bank_num );
 
@@ -803,7 +783,7 @@ void set_bank_name( uint8_t bank_num, char *name ) {
 
   Serial.printf("Setting Bank %02d name to %s\n", bank_num, name);
   if( bank_num == BANK_STAGING )
-    sprintf( src_fn, "/STAGING/BANKNAME.TXT" );
+    sprintf( src_fn, STAGING_BANKNAME_FN );
   else
     sprintf( src_fn, "/DRMBANKS/%02d/BANKNAME.TXT", bank_num );
 
@@ -861,7 +841,7 @@ void voice_bank_dirty( bool d ) {
 void load_voice_bank( uint16_t voice_selects, uint8_t bank_num ) {
   bool prev = prev_drum_trig_int_enable;
   
-  Serial.print("--- Loading voice bank # "); Serial.println( bank_num );
+  Serial.printf("\n--- Loading voice bank # %02d %s\n\n", bank_num, (bank_num==255)?"(STAGING)":" ");
 
   cur_bank_num = bank_num;
 
@@ -885,8 +865,12 @@ void load_voice_bank( uint16_t voice_selects, uint8_t bank_num ) {
     enable_drum_trig_interrupt();
 
   stage_bank_name( bank_num );              // if there is a BANKNAME.TXT, copy it to STAGING
+  stage_bank_num( bank_num );               // and remember the original bank we loaded into STAGING
 
   voice_bank_dirty( false );
+
+  if( bank_num < 100 )                      // 255 = STAGING
+    didProgramChange( bank_num );           // send MIDI Program Change
 }
 
 
@@ -909,57 +893,27 @@ void store_voice_bank( uint16_t voice_selects, uint8_t bank_num ) {
   // -- if there is a /STAGING/BANKNAME.TXT, copy it to the dest bank
 
   sprintf( src_fn, "/DRMBANKS/%02d/BANKNAME.TXT", bank_num );
-  delete_and_copy( src_fn, "/STAGING/BANKNAME.TXT", "NO BANK NAME", strlen("NO BANK NAME") );
+  delete_and_copy( src_fn, STAGING_BANKNAME_FN, STAGING_DEFAULT_BANKNAME, strlen(STAGING_DEFAULT_BANKNAME) );
 }
 
 
-uint8_t *get_voice_file( char *fn, char *voice_name, int *voice_len );
 
-uint8_t *get_voice_file( char *fn, char *voice_name, int *voice_len ) {
-  char vname[24];
-  int maxdotfiles;
+uint8_t *get_voice_file( char *dirname, char *voice_name, int *voice_len ) {
 
-  memset( filebuf, 0, 32768 );                                                // zero our buffer, so smaller sounds are padded with silence
+  memset( filebuf, 0, 32768 );                                                    // zero buffer, so smaller sounds are padded with silence
   
-  Serial.print("Opening "); Serial.println( fn );
+  Serial.printf("get_voice_file: Opening %s\n", dirname );
   
-  root = SD.open( fn );
-  
-  file = root.openNextFile();                                                 // we will load the 1st file in the dir (should only be 1)
-  
-  // OSX annoyingly adds these .DS_Store and ._.DS_Store files, skip to next file if we find one
-
-  maxdotfiles = 10;
-
-  while( maxdotfiles && file.name()[0] == '.' ) {
-    Serial.printf("*** Found %s, skipping to next file\n", file.name());
-    file = root.openNextFile();
-    maxdotfiles--;
-  }
-
-  if( file ) {
-    filesize = file.size();
-    Serial.print("name: "); Serial.println( file.name() );
-    Serial.print("size: "); Serial.println( filesize );
-
-    file.read( filebuf, filesize );                                           // read it into 32KB working buffer
-
-    snprintf( vname, 24, "%s", file.name() );                                 // remember what it's called
-
-    file.close();
-  } 
-  else {
-    Serial.println("### Error opening file, filling voice mem with ramp ");  
+  if( !get_first_file_in_dir( dirname, voice_name, filebuf, voice_len, 32768 ) )  // will return data in filebuf, name in voice_name, len in voice_len
+  {
+    Serial.printf("### Error opening file, filling voice mem with ramp\n");  
     
-    for( int xxx = 0; xxx != 2048; xxx++ )                                    // build a ramp
+    for( int xxx = 0; xxx != 2048; xxx++ )                                        // build a 2KB ramp
       filebuf[xxx] = (uint8_t)xxx;
 
-    strncpy( vname, "RAMP2KB.BIN", 24 );
-    filesize = 2048;    
+    strncpy( voice_name, "RAMP2KB.BIN", 24 );
+    *voice_len = 2048;    
   }
-
-  *voice_len = filesize;
-  strncpy( voice_name, vname, 24 );
   
   return( filebuf );
 }

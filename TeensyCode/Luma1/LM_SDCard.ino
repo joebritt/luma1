@@ -62,6 +62,148 @@ bool init_sd_card() {
 }
 
 
+/* ================================================================================================================
+    General purpose file utilities
+*/
+
+// used for loading voice files, finds the first file in a directory and loads up to max_len bytes of it into buf, returns len in len
+
+bool get_first_file_in_dir( char *dirname, char *fn, uint8_t *buf, int *len, int max_len ) {
+  bool status = true;
+  int maxdotfiles = 10;
+
+  root = SD.open( dirname );
+  
+  file = root.openNextFile();                                                 // we will load the 1st file in the dir (should only be 1)
+  
+  // OSX annoyingly adds these .DS_Store and ._.DS_Store files, skip to next file if we find one
+
+  while( maxdotfiles && file.name()[0] == '.' ) {
+    Serial.printf("*** Found %s, skipping to next file\n", file.name());
+    file = root.openNextFile();
+    maxdotfiles--;
+  }
+
+  if( file ) {
+    Serial.print("name: "); Serial.println( file.name() );
+
+    filesize = file.size();
+
+    if( filesize > max_len ) {
+      Serial.printf("### file too big, it is %d bytes, max is %d bytes, truncating\n", filesize, max_len);
+      filesize = max_len;
+    }
+
+    Serial.print("size: "); Serial.println( filesize );
+
+    file.read( buf, filesize );                                           // read it into 32KB working buffer
+
+    snprintf( fn, 24, "%s", file.name() );                                // remember what it's called
+    *len = filesize;                                                      // and how big it is
+
+    file.close();
+  }
+  else
+    status = false;                                                       // bummer
+
+  return status;
+}
+
+
+// if "fn" exists, delete it. then create a file named "fn", and write len bytes of buf to it.
+
+bool replace_file( char *fn, uint8_t *buf, int len ) {
+  bool status = true;
+
+  file = SD.open( fn );                             // see if there is an old one we need to remove
+
+  if( file ) {
+    Serial.printf("Found %s, deleting it\n", fn);
+    file.close();
+    SD.remove( fn );
+  }
+  else
+    Serial.printf("### Did not find %s\n", fn);
+  
+
+  file = SD.open( fn, FILE_WRITE );                 // now make a new one
+
+  if( file ) {
+    file.write( buf, len );
+    file.close();
+  }
+  else {
+    status = false;
+    Serial.printf("### Error, could not open %s file for writing.\n", fn);
+  }
+
+  return status;
+}
+
+
+// Delete the SD card file at dst, if it exists. Then copy the file at src to the filename dst.
+// If src doesn't exist, copy default_len bytes from default_data[] to dst.
+
+void delete_and_copy( char *dst, char *src, char *default_data, int default_len ) {
+
+  Serial.printf("Delete and Copy: %s -> %s\n", src, dst);
+
+  // -- if the dst file exists, delete it
+
+  file = SD.open( dst );
+
+  if( file ) {
+    Serial.printf("Found %s, deleting it\n", dst);
+    file.close();
+    SD.remove( dst );
+  }
+
+  // -- now copy the src file to the dst location
+
+  filesize = 0;
+
+  if( src ) {                                         // pass in NULL to always use default_data
+    file = SD.open( src );                            // read in the src
+
+    if( file ) {
+      filesize = file.size();
+
+      if( filesize > 32768 )
+        filesize = 32768;
+      
+      Serial.printf("src filesize = %d\n", filesize);
+
+      memset( filebuf, 0, filesize );
+      
+      file.read( filebuf, filesize );         
+      file.close();
+    }
+  }
+  else
+    Serial.printf("src = NULL, using default data\n");
+
+  file = SD.open( dst, FILE_WRITE );                  // write to the dst
+
+  if( file ) {
+    if( filesize )
+      file.write( filebuf, filesize );
+    else
+      file.write( default_data, default_len );
+
+    file.close();
+  }
+  else {
+    Serial.printf("### Error, could not open %s file for writing.\n", dst);
+  }
+}
+
+
+
+
+/* ================================================================================================================
+    SD Card ROM and RAM file utilities
+*/
+
 bool load_z80_rom_file( char *rom_fn ) {
 
   Serial.print("Opening "); Serial.println( rom_fn );
@@ -93,18 +235,6 @@ bool load_z80_rom_file( char *rom_fn ) {
 void build_rambank_filename( uint8_t bank_num, uint16_t cs, char *fn ) {
   sprintf( fn, "/RAMBANKS/%02d/RAM_IMAGE_%04d.bin",   bank_num, cs );           // change to monotonically increasing # in filename
 //  sprintf( fn, "/RAMBANKS/%02d/RAM_IMAGE_%04X.bin",   bank_num, cs );
-}
-
-
-uint16_t checksum( uint8_t *d, int len );
-
-uint16_t checksum( uint8_t *d, int len ) {
-  uint16_t cs = 0;
-
-  for( int xxx = 0; xxx != len; xxx++ )
-    cs += d[xxx];
-
-  return cs;
 }
 
 
@@ -274,6 +404,19 @@ char *get_ram_bank_name( uint8_t bank_num ) {             // 0xff for current ac
 }
 
 
+
+/* ================================================================================================================
+    Miscellaneous SD card routines
+*/
+
+uint16_t checksum( uint8_t *d, int len ) {
+  uint16_t cs = 0;
+
+  for( int xxx = 0; xxx != len; xxx++ )
+    cs += d[xxx];
+
+  return cs;
+}
 
 // dump the SD card directory
 void sd_card_ls() {

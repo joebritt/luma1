@@ -682,7 +682,6 @@ void myProgramChange(byte channel, byte pgm) {
 
 
 
-
 /* ---------------------------------------------------------------------------------------
     __  __ _____ _____ _____    ____  _    _ _______ 
    |  \/  |_   _|  __ \_   _|  / __ \| |  | |__   __|
@@ -881,6 +880,14 @@ void handle_midi_out() {
   
     check_triggers = false;
   }  
+}
+
+
+void didProgramChange( byte pgm ) {
+  Serial.printf("Sending MIDI Program Change: %02d\n", pgm);
+
+  midiDIN.sendProgramChange( pgm, (midi_chan == 0)?1:midi_chan );
+  usbMIDI.sendProgramChange( pgm, (midi_chan == 0)?1:midi_chan );
 }
 
 

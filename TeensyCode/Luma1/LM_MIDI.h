@@ -122,6 +122,8 @@ void myContinue();
 void myStop();
 void mySystemExclusiveChunk(const byte *d, uint16_t len, bool last);
 
+void didProgramChange( byte pgm );                  // send Program Change MIDI message
+
 
 // manage the TAPE_SYNC_CLK signal
 

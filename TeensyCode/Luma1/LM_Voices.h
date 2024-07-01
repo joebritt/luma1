@@ -61,7 +61,11 @@ void load_voice_prologue( uint16_t v );
 void load_voice_epilogue( uint16_t v );
 
 void stage_voice( char *dirname, char *fn, uint8_t *s, int len );
+
 void stage_bank_name( uint8_t cur_bank_num );
+
+void stage_bank_num( uint8_t cur_bank_num );
+uint8_t get_orig_bank_num();
 
 void load_voice( uint16_t voice, uint8_t *s, int len );
 

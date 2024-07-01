@@ -29,6 +29,23 @@
 
 bool init_sd_card();                                // return true if we were able to find the SD card
 
+
+// -- General purpose file utilities
+
+// used for loading voice files, finds the first file in a directory
+// copies up to max_len bytes from that file
+// returns # of bytes copied in len
+// returns name of file in fn (up to 24 chars)
+bool get_first_file_in_dir( char *dirname, char *fn, uint8_t *buf, int *len, int max_len );
+
+bool replace_file( char *fn, uint8_t *buf, int len );     // if "fn" exists, delete it. then create a file named "fn", and write len bytes of buf to it.
+
+void delete_and_copy( char *dst, char * src, char *default_data, int default_len );     // Delete the SD card file at dst, if it exists.
+                                                                                        // Then copy the file at src to the filename dst.
+                                                                                        // If src doesn't exist, copy default_len bytes from default_data[] to dst.
+
+// -- SD Card ROM and RAM file utilities
+
 bool load_z80_rom_file( char *rom_fn );             // normally only called by startup code, typically loads 
 
 void save_ram_bank( uint8_t banknum );              // snapshot Z-80 RAM and save to /RAMBANKS/banknum/RAM_IMAGE_<checksum>.bin
@@ -38,6 +55,8 @@ void load_ram_bank( uint8_t banknum );              // replace Z-80 RAM with fir
 
 char *get_ram_bank_name( uint8_t bank_num );        // 0xff for current Z-80 RAM
 
+
+// --- Miscellaneous SD card routines
 
 uint16_t checksum( uint8_t *d, int len );           // calculate a 16 bit checksum, used for naming RAM save files
 
