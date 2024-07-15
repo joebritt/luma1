@@ -37,6 +37,8 @@ MIDI_CREATE_INSTANCE(HardwareSerial, HW_MIDI, midiDIN);
 #define TXINV_FORCE               0x10000000        // TXINV bit to set
 
 
+int midi_chan = 1;
+
 
 // --- MIDI interface routing
 
@@ -52,6 +54,11 @@ uint8_t midi_sysex_route;         // can be DIN5 or USB only
 // --- SOFT THRU
 
 bool midi_soft_thru;              // initialized from EEPROM
+
+
+// --- SEND VELOCITY
+
+bool midi_send_velocity;          // initialized from EEPROM
 
 
 // --- HONOR MIDI START/STOP
@@ -75,6 +82,7 @@ bool map_midi_2_strobe( byte note, byte vel, uint16_t *strobe, uint8_t *flags );
 typedef struct {
   byte midi_note;
   bool drum_playing;
+  bool drum_soft;         // this was a soft one, need this if midi_send_velocity == false
   byte flags;
   uint16_t strobe;
   elapsedMillis drum_time_elapsed; 
@@ -101,6 +109,7 @@ void set_drum_table_entry( int entry, byte note, uint16_t stb, byte flgs ) {
   
   drums[entry].midi_note = note;
   drums[entry].drum_playing = false;
+  drums[entry].drum_soft = false;
   drums[entry].strobe = stb;
   drums[entry].flags = flgs;
 
@@ -136,6 +145,20 @@ bool map_midi_2_strobe( byte note, byte vel, uint16_t *strobe, uint8_t *flags ) 
     All MIDI functions for both the DIN-5 and USB interfaces
 */
 
+void din_midi_begin( int chan );
+
+void din_midi_begin( int chan ) {
+  if( midi_chan != 0 ) {                            // only seem to need to do this for the DIN interface
+    Serial.printf("MIDI Channel = %d, starting DIN-5 interface for non-omni mode\n", midi_chan);
+    midiDIN.begin();
+  }
+  else {
+    Serial.printf("MIDI Channel = %d, starting DIN-5 interface for OMNI mode\n", midi_chan);
+    midiDIN.begin( MIDI_CHANNEL_OMNI );
+  }
+}
+
+
 void init_midi() {
 
   // -- restore settings from eeprom
@@ -152,7 +175,11 @@ void init_midi() {
 
   midi_soft_thru = eeprom_load_midi_soft_thru();
 
-  honor_start_stop = eeprom_load_midi_start_honor();
+  set_midi_soft_thru( midi_soft_thru );
+
+  midi_send_velocity = eeprom_load_midi_send_velocity();        // are we sending velocity or separate keys for soft sounds? (can always receive velocity)
+
+  honor_start_stop = eeprom_load_midi_start_honor();            // are we trying to "push" the start button upon MIDI Start?
 
 
   // -- set up the drum voice management (used for NOFs) table
@@ -191,7 +218,7 @@ void init_midi() {
 
   midiDIN.setHandleSystemExclusive( din_mySystemExclusiveChunk  );
 
-  midiDIN.begin();
+  din_midi_begin( midi_chan );
 
   // -- Total hack: manually whack the TXINV bit in the LPUART6 block. 
   //    We need inverted TX for Luma-1's hardware, but MIDI library doesn't expose serial port format settings
@@ -213,6 +240,20 @@ void init_midi() {
   
   usbMIDI.setHandleSystemExclusive( usb_mySystemExclusiveChunk  );
 }
+
+
+/* ---------------------------------------------------------------------------------------
+    MIDI Channel (00 = OMNI)
+*/
+
+void set_midi_channel( int chan ) {
+  midi_chan = chan;
+  eeprom_save_midi_channel( midi_chan );
+  din_midi_begin( midi_chan );
+}
+
+int get_midi_channel() { return midi_chan; }
+
 
 
 
@@ -261,6 +302,17 @@ void set_midi_soft_thru( bool on ) {
 }
 
 bool get_midi_soft_thru()                   {     return midi_soft_thru;        }
+
+
+// --- Send Velocity
+
+void set_midi_send_vel( bool on ) {
+  Serial.printf("Setting MIDI Send Velocity %s\n", midi_send_velocity?"ON":"off");
+  midi_send_velocity = on;   
+}
+
+bool get_midi_send_vel()                   {     return midi_send_velocity;        }
+
 
 /* ---------------------------------------------------------------------------------------
     Interface-specific trampolines, which choose whether or not to call the actual handler based on interface enable settings
@@ -633,7 +685,15 @@ void handle_midi_in() {
 
 void myNoteOn(byte channel, byte note, byte velocity) {
   
-  play_midi_drm( note, velocity );
+  //Serial.printf(" %d %d %d\n", channel, note, velocity);
+
+  if( note >= MIDI_NOTE_BASS )
+    play_midi_drm( note, velocity );                                    // if it's in our range, play with the provided velocity
+  else {
+    //Serial.printf(" low note, will play %d\n", note+MIDI_NOTE_SOFT_TRIG_OFFSET);
+
+    play_midi_drm( note+MIDI_NOTE_SOFT_TRIG_OFFSET, MIDI_VEL_SOFT );    // if it's in the soft trig range, play with soft velocity
+  }
   
 }
 
@@ -705,19 +765,28 @@ bool luma_is_playing() {
 // These are used to send Note Off (NOF) messages at some time after a NON. We can't tell when a sample is finished playing, so we use a fixed time.
 
 void check_NOF_times() {
+  byte note;
+
   for( int xxx = 0; xxx != 13; xxx++ ) {                                  // check all 13 drums
     
     if( drums[xxx].drum_playing == true ) {                               // is this one playing?
 
       if ( drums[xxx].drum_time_elapsed > NOF_TIME_MS ) {                 // is it time to send the NOF?
+        note = drums[xxx].midi_note;
+
+        if( midi_send_velocity == false ) {                               // IF we are not sending velocity
+          if( drums[xxx].drum_soft == true ) {                            // AND this was a soft one
+            note -= MIDI_NOTE_SOFT_TRIG_OFFSET;                           // THEN adjust note value
+          }
+        }
 
         if( get_midi_note_out_route() & ROUTE_DIN5 ) {
-          midiDIN.sendNoteOff(  drums[xxx].midi_note, 127, (midi_chan == 0)?1:midi_chan );
+          midiDIN.sendNoteOff( note, MIDI_VEL_LOUD, (midi_chan == 0)?1:midi_chan );
           midi_din_out_event();
         }
 
         if( get_midi_note_out_route() & ROUTE_USB ) {
-          usbMIDI.sendNoteOff(  drums[xxx].midi_note, 127, (midi_chan == 0)?1:midi_chan );
+          usbMIDI.sendNoteOff( note, MIDI_VEL_LOUD, (midi_chan == 0)?1:midi_chan );
           midi_usb_out_event();
         }
 
@@ -751,16 +820,36 @@ char *drum_name( int idx, byte vel ) {
 
 
 void send_midi_drm( int drum_idx, byte vel ) {                            // if we are in OMNI mode, send on channel 1
+  byte note;
 
-  Serial.printf("%s: %d %d\n", drum_name(drum_idx,vel), drums[drum_idx].midi_note, vel );
+  note = drums[drum_idx].midi_note;
+
+  drums[drum_idx].drum_soft = (vel < MIDI_VEL_LOUD);          // remember this so we can NOF the right way when midi_send_velocity == false
+
+  Serial.printf("%s: %d %d\n", drum_name(drum_idx,vel), note, vel );
+
+  if( midi_send_velocity == false ) {                         // if FALSE, send soft notes on secondary note mapping. can keep low velocity.
+    switch( note ) {
+      case MIDI_NOTE_BASS:
+      case MIDI_NOTE_SNARE:
+      case MIDI_NOTE_HIHAT:
+      case MIDI_NOTE_CABASA:
+      case MIDI_NOTE_TAMB:
+                            if( vel < MIDI_VEL_LOUD ) {
+                              Serial.printf("no vel, mapped MIDI note %d to %d\n", note, note-MIDI_NOTE_SOFT_TRIG_OFFSET);
+                              note -= MIDI_NOTE_SOFT_TRIG_OFFSET;
+                            }
+                            break;
+    }
+  }
 
   if( get_midi_note_out_route() & ROUTE_DIN5 ) {
-    midiDIN.sendNoteOn(   drums[drum_idx].midi_note, vel, (midi_chan == 0)?1:midi_chan );
+    midiDIN.sendNoteOn( note, vel, (midi_chan == 0)?1:midi_chan );
     midi_din_out_event();
   }
 
   if( get_midi_note_out_route() & ROUTE_USB ) {
-    usbMIDI.sendNoteOn(   drums[drum_idx].midi_note, vel, (midi_chan == 0)?1:midi_chan );
+    usbMIDI.sendNoteOn( note, vel, (midi_chan == 0)?1:midi_chan );
     midi_usb_out_event();
   }
   

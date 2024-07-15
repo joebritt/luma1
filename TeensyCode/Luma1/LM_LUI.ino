@@ -160,6 +160,7 @@ char *lui_actions( uint8_t cmd ) {
     case 0x85:  return (char*)"MIDI SysEx";
     case 0x86:  return (char*)"MIDI Soft Thru";
     case 0x87:  return (char*)"MIDI Start Enabl";
+    case 0x88:  return (char*)"MIDI Send Vel";
     case 0x90:  return (char*)"Boot Screen";
     case 0x97:  return (char*)"SD Dir";
     case 0x98:  return (char*)"Format SD";
@@ -376,6 +377,15 @@ char *lui_val_info( uint8_t cmd, uint8_t val, bool val_is_valid ) {
               break;
 
     case 87:  show_top_banner( (char*)"MIDI Start Enable " );
+              if( val_is_valid ) {
+                switch( val ) {
+                  case 00:  return (char*)"disabled";
+                  case 01:  return (char*)"ENABLED";
+                }
+              }
+              break;
+
+    case 88:  show_top_banner( (char*)"MIDI Send Velocity" );
               if( val_is_valid ) {
                 switch( val ) {
                   case 00:  return (char*)"disabled";
@@ -857,7 +867,7 @@ void handle_local_ui() {
                                   break;
                         
                         case 80:  valid_range( 0, 16 );                     // 00 is OMNI, then chans 1 - 16
-                                  input_digits_init_preload( midi_chan );
+                                  input_digits_init_preload( dec2bcd( get_midi_channel() ) );
                                   local_ui_state = LUI_GET_VAL;
                                   break;
 
@@ -893,6 +903,11 @@ void handle_local_ui() {
 
                         case 87:  valid_range( 0, 1 );                      // off, ON
                                   input_digits_init_preload( (honorMIDIStartStopState() ? 1:0) );
+                                  local_ui_state = LUI_GET_VAL;
+                                  break;
+
+                        case 88:  valid_range( 0, 1 );                      // off, ON
+                                  input_digits_init_preload( (get_midi_send_vel() ? 1:0) );
                                   local_ui_state = LUI_GET_VAL;
                                   break;
 
@@ -1004,8 +1019,7 @@ void handle_local_ui() {
                                     break;
                                     
                           case 80:  Serial.print("CMD: MIDI Channel "); Serial.println( val );
-                                    midi_chan = val;
-                                    eeprom_save_midi_channel( midi_chan );
+                                    set_midi_channel( val );
                                     break;
 
                           case 81:  val++;                                                            // 81-85 are 01,02,03
@@ -1046,6 +1060,11 @@ void handle_local_ui() {
                           case 87:  Serial.printf("CMD: MIDI Start Enable %02x\n", val );
                                     honorMIDIStartStop( val ? true:false );
                                     eeprom_save_midi_start_honor( val ? true:false );
+                                    break;
+
+                          case 88:  Serial.printf("CMD: MIDI Send Vel %02x\n", val );
+                                    set_midi_send_vel( val ? true:false );
+                                    eeprom_save_midi_send_velocity( val ? true:false );
                                     break;
 
                           case 90:  Serial.print("CMD: Boot Screen Select "); Serial.println( val );

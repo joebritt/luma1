@@ -51,7 +51,7 @@
 */
 
 #define   LUMA1_FW_VERSION_MAJOR    0
-#define   LUMA1_FW_VERSION_MINOR    937
+#define   LUMA1_FW_VERSION_MINOR    938
 
 char serial_number[9];                              // we terminate with 0 so we can use it as a string
 

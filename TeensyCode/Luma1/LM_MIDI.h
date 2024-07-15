@@ -27,8 +27,6 @@
 #include <MIDI.h>
 #include "LM_EEPROM.h"
 
-int midi_chan = 1;
-
 // MIDI note mapping used in the Kenton LM-1 MIDI retrofit kit
 
 #define MIDI_NOTE_BASS              36              // C1
@@ -44,6 +42,10 @@ int midi_chan = 1;
 #define MIDI_NOTE_CONGA_DN          46              // A#1
 #define MIDI_NOTE_COWBELL           47              // B1
 #define MIDI_NOTE_CLAVE             48              // C2       AKA RIMSHOT
+
+// NOTE: For compatibility with controllers that lack velocity, Luma-1 will respond to notes from C-1 - C0 as MIDI_VEL_SOFT triggers
+
+#define MIDI_NOTE_SOFT_TRIG_OFFSET  24              // e.g., MIDI_NOTE_BASS = 36, soft MIDI_NOTE_BASS = 36-24 = 12 --> C-1
 
 #define MIDI_VEL_LOUD               127
 #define MIDI_VEL_SOFT               63
@@ -72,6 +74,11 @@ bool midi_usb_in_active();
 #define ROUTE_DIN5                0x01
 #define ROUTE_USB                 0x02
 #define ROUTE_DIN5_USB            0x03
+
+// -- CHANNEL (00 = OMNI)
+
+void set_midi_channel( int chan );
+int get_midi_channel();
 
 
 // --- Notes
@@ -103,6 +110,11 @@ uint8_t get_midi_sysex_route();
 
 void set_midi_soft_thru( bool on );
 bool get_midi_soft_thru();
+
+// --- Send Velocity
+
+void set_midi_send_vel( bool on );        // if TRUE, send velocity for primary note mapping.
+bool get_midi_send_vel();                 // if FALSE, send vel = 127 and use secondary note mapping for soft sounds
 
 
 // drum trigger to/from MIDI

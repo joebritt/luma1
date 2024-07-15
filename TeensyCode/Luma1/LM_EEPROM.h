@@ -48,6 +48,9 @@
 #define LM_EEPROM_RAMBANK_LO        10        // 2 bytes, monotonically incrementing counter for RAM bank names
 #define LM_EEPROM_RAMBANK_HI        11
 
+#define LM_EEPROM_MIDI_SEND_VEL     12
+
+
 // ... available ...
 
 #define LM_EEPROM_SERIAL_NUM        512
@@ -87,6 +90,9 @@ bool eeprom_load_midi_soft_thru();
 
 void eeprom_save_midi_start_honor( bool on);
 bool eeprom_load_midi_start_honor();
+
+void eeprom_save_midi_send_velocity( bool on);
+bool eeprom_load_midi_send_velocity();
 
 uint16_t eeprom_next_rambank_num();
 

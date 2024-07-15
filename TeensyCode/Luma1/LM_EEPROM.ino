@@ -249,6 +249,22 @@ bool eeprom_load_midi_start_honor() {
   return m?true:false;
 }
 
+
+// --- MIDI SEND VELOCITY
+
+void eeprom_save_midi_send_velocity( bool on) {
+  Serial.printf("Saving MIDI Send Velocity: %s\n", on?"ENABLED":"disabled");
+  EEPROM.write( LM_EEPROM_MIDI_SEND_VEL, on?1:0 );
+}
+
+bool eeprom_load_midi_send_velocity() {
+  uint8_t m;
+  m = EEPROM.read( LM_EEPROM_MIDI_SEND_VEL );
+  Serial.printf("Loaded MIDI Send Velocity: %s\n", m?"ENABLED":"disabled" );
+  return m?true:false;
+}
+
+
 // --- MONOTONICALLY INCREMENTING NUMBER FOR RAM BANK NAMES
 
 uint16_t eeprom_next_rambank_num() {
