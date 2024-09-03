@@ -34,8 +34,6 @@ char stage_fn[256];
 
 char src_fn[64];
 
-bool vbank_dirty = false;
-
 // We maintain some state in these STAGING files
 
 #define STAGING_ORIG_BANKNUM_FN     "/STAGING/ORIGBNUM.BIN"
@@ -180,10 +178,10 @@ void stage_bank_name( uint8_t bank_num ) {
 
     delete_and_copy( STAGING_BANKNAME_FN, src_fn, STAGING_DEFAULT_BANKNAME, strlen(STAGING_DEFAULT_BANKNAME) );
  
-    Serial.printf("Staged bank name: %s\n", get_sd_voice_bank_name( BANK_STAGING ));
+    Serial.printf("Staged bank name: %s\n", get_voice_bank_name( BANK_STAGING ));
   }
   else
-    Serial.printf("stage_bank_name: bank passed in IS staging - %s\n", get_sd_voice_bank_name( BANK_STAGING ));
+    Serial.printf("stage_bank_name: bank passed in IS staging - %s\n", get_voice_bank_name( BANK_STAGING ));
 }     
 
 
@@ -630,93 +628,6 @@ void load_voice( uint16_t voice, uint8_t *s, int len ) {
 }
 
 
-/*
-  Given a 2-digit bank number, find the directory in the DRMBANKS top-level directory that starts with those digits.
-
-  If the directory name is in the expected format of XX_nnnnnnnn, return that directory name.
-
-  If the directory name is just XX (older version), rename it XX_UNKNOWN and return that directory name.
-
-  There is no wildcard support in the SD library. We use RAM to hold a shadow of the directory names as we find them,
-  so we don't scan through them on the SD card every time a request is made.
-*/
-
-bool vb_dirname_cache_dirty = true;                     // do we need to rebuild the bank number -> filename mappings?
-
-char vb_dirname[100][32];                               // 3KB to hold shadow of directory names
-
-char *get_voice_bank_dirname( uint8_t bank_num );
-
-uint8_t filename_to_index( char *fn );
-char *filename_to_name( char *fn );
-
-
-// expects fn starting with 00-99, and return value 0-99. if name doesn't start with 00-99, return 255
-
-uint8_t filename_to_index( char *fn ) {
-  uint8_t r = 255;
-
-  if( (sscanf( fn, "%02d", &r ) != 1) || (r > 99) )     // should start with 00-99, if not return 255 (error)
-    r = 255;
-
-  return r;
-}
-
-
-// assumes XX_nnnnnnnn format, returns pointer to nnnnnnnn
-// if string is not more than 3 char, something is wrong, return string "UNKNOWN"
-
-char *filename_to_name( char *fn ) {
-  if( strlen(fn) > 3 )
-    return &fn[3];
-  else
-    return (char*)"UNKNOWN";
-}
-
-
-char *get_voice_bank_dirname( uint8_t bank_num ) {
-
-  // --- handle startup and error cases
-  
-  if( vb_dirname_cache_dirty ) {                            // do we need to iterate through the DRMBANKS dir?
-    for( int xxx = 0; xxx != 100; xxx++ )                   // initialize the table, all invalid (0-len filenames)
-      vb_dirname[xxx][0] = 0;
-    
-    root = SD.open( "/DRMBANKS" );
-
-    if( root ) {                                                      // bad times if this doesn't work, no DRMBANKS dir
-      for( int xxx = 0; xxx != 100; xxx++ ) {
-        file = root.openNextFile();
-        if( file ) {                                                              // anything there?
-          if( file.isDirectory() ) {
-            //Serial.printf("%02d: %s\n", xxx, file.name());
-            snprintf( vb_dirname[bank_num], 32, "%s", file.name() );              // get it into cache
-            
-            if( vb_dirname[bank_num][2] != '_' ) {                                // not XX_nnnnnnnn format?
-              snprintf( vb_dirname[bank_num], 32, "%02d_UNKNOWN", bank_num );     //  --> make it into that format
-              
-              Serial.printf("get_voice_bank_dirname: renaming %s to %s\n", file.name(), vb_dirname[bank_num]);
-              
-              //file.rename( file.name(), vb_dirname[bank_num] );
-            }
-          }
-          else
-            xxx--;                                                    // only count directories
-        }
-      }
-  
-      vb_dirname_cache_dirty = false;
-    }
-    else
-      return (char*)"ERROR:DRMBANKS";
-  }
-
-  // -- happy case, return data from cache
-  
-  return vb_dirname[bank_num];
-}
-
-
 void build_voice_filename( uint16_t voice, uint8_t bank_num, char *fn ) {
 
   if( bank_num == BANK_STAGING )
@@ -747,15 +658,11 @@ void build_voice_filename( uint16_t voice, uint8_t bank_num, char *fn ) {
 }
 
 
-#define DISP_BANKNAME_CHARS     24
-
 /*
     for Voice Banks: /DRMBANKS/bb/BANKNAME.TXT
 */
  
-char *get_bank_name( uint8_t bank_num );
-
-char *get_bank_name( uint8_t bank_num ) {
+char *get_voice_bank_name( uint8_t bank_num ) {
   
   if( bank_num == BANK_STAGING )
     sprintf( src_fn, STAGING_BANKNAME_FN );
@@ -766,9 +673,9 @@ char *get_bank_name( uint8_t bank_num ) {
   
   if( file ) {
     filesize = file.size();
-    memset( filebuf, 0, DISP_BANKNAME_CHARS+1 );
+    memset( filebuf, 0, MAX_BANKNAME_CHARS+1 );
     
-    file.read( filebuf, (filesize > DISP_BANKNAME_CHARS) ? DISP_BANKNAME_CHARS : filesize );         
+    file.read( filebuf, (filesize > MAX_BANKNAME_CHARS) ? MAX_BANKNAME_CHARS : filesize );         
     file.close();
   }
   else {    
@@ -779,7 +686,7 @@ char *get_bank_name( uint8_t bank_num ) {
 }
 
 
-void set_bank_name( uint8_t bank_num, char *name ) {
+void set_voice_bank_name( uint8_t bank_num, char *name ) {
 
   Serial.printf("Setting Bank %02d name to %s\n", bank_num, name);
   if( bank_num == BANK_STAGING )
@@ -791,50 +698,44 @@ void set_bank_name( uint8_t bank_num, char *name ) {
 }
 
 
+void write_sd_bank_voice( uint8_t bank, uint8_t drum, char *drum_name, uint8_t *sample_data, int len ) {
+  Serial.printf("Writing voice data for %s to bank %02d, drum number %02d, len = %d bytes\n", drum_name, bank, drum, len);
+
+  build_voice_filename( drum_sel_2_voice( drum ), bank, src_fn );
+
+  delete_all_in_dir( src_fn );                      // get rid of any other files in the target dir
+
+  make_dir( src_fn );                               // make sure the target dir exists, create_file() won't create needed dirs
+
+  strcat( src_fn, "/" );
+  strcat( src_fn, drum_name );
+
+  create_file( src_fn, sample_data, len );          // actually put the file data there
+}
+
+
+
 /*
     Voice Banks have a 2-digit decimal name, 00-99, which is their BANK NUMBER.
     This is so we can access them easily with the number keys on the LM-1's control panel, and show the bank # on the LED display.
 
-    Voice Banks can also have a friendly name like "Original LM-1" or "DMX".
-
     A Voice Bank is stored in a particular subdirectory in the DRMBANKS top-level directory on the SD card.
     The naming convention for each of those bank subdirectories is:
 
-    XX_nnnnnnnn
+    XX
 
-    Where "XX" is 2 digits, from 00 to 99, and nnnnnnnn is an ASCII friendly name, up to 24 characters long.
+    Where "XX" is 2 digits, from 00 to 99.
 
-      ----
-      NOTE: "BANK_STAGING" is a special bank number that refers to the /STAGING voice bank shadow directory on the SD card
-      ----
+    Voice Banks can also have a friendly name like "Original LM-1" or "DMX". 
+    This is stored in a file called BANKNAME.TXT in the bank subdirectory.
 
-    When get_sd_voice_bank_name() is called, it takes a bank number (00-99) and uses it to look for the corresponding subdirectory,
-     which starts with that bank number.
-
-    It then extracts the text after the '_' character in the directory name and returns a string containing those characters.
-
-    If it finds a directory that starts with the right 2 digit bank number, but not the _nnnnnnnn part, it renames the directory to use
-     that convention with _Unknown as the name.
+    NOTE: "BANK_STAGING" is a special bank number that refers to the /STAGING voice bank shadow directory on the SD card
 */
 
-char *get_sd_voice_bank_name( uint8_t bank_num ) {
-  return get_bank_name( bank_num );
-}
-
 char *get_cur_bank_name() {
-  char *n = get_sd_voice_bank_name( cur_bank_num );
-
-  if( vbank_dirty ) {
-    src_fn[0] = '*';
-    memcpy( src_fn+1, n, strlen(n)+1 );
-    memcpy( n, src_fn, strlen(src_fn)+1 );
-  }
+  char *n = get_voice_bank_name( cur_bank_num );
 
   return n;
-}
-
-void voice_bank_dirty( bool d ) {
-  vbank_dirty = d;
 }
 
 
@@ -844,8 +745,6 @@ void load_voice_bank( uint16_t voice_selects, uint8_t bank_num ) {
   Serial.printf("\n--- Loading voice bank # %02d %s\n\n", bank_num, (bank_num==255)?"(STAGING)":" ");
 
   cur_bank_num = bank_num;
-
- // get_voice_bank_dirname( bank_num );   // XXX TESTING
     
   disable_drum_trig_interrupt();            // XXX should not need to do this, fix properly
   prev_drum_trig_int_enable = false;
@@ -866,8 +765,6 @@ void load_voice_bank( uint16_t voice_selects, uint8_t bank_num ) {
 
   stage_bank_name( bank_num );              // if there is a BANKNAME.TXT, copy it to STAGING
   stage_bank_num( bank_num );               // and remember the original bank we loaded into STAGING
-
-  voice_bank_dirty( false );
 
   if( bank_num < 100 )                      // 255 = STAGING
     didProgramChange( bank_num );           // send MIDI Program Change

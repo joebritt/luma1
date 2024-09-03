@@ -198,6 +198,68 @@ void delete_and_copy( char *dst, char *src, char *default_data, int default_len 
 }
 
 
+// delete any/all files in dirname
+
+void delete_all_in_dir( char *dirname ) {
+  bool r;
+  Serial.printf("delete_all_in_dir: %s\n", dirname);
+
+  if( root ) {
+    for( int xxx = 0; xxx != 20; xxx++ ) {                  // delete up to 20 existing files, more checks needed?
+      root = SD.open( dirname );
+      file = root.openNextFile();
+
+      if( file ) {
+        snprintf( fn_buf, sizeof(fn_buf)-1, dirname );
+        strcat( fn_buf, "/" );
+        strcat( fn_buf, file.name() );                      // remove() needs full path
+        Serial.printf("Found %s, deleting it\n", fn_buf);
+        file.close();
+        r = SD.remove( fn_buf );
+        if( !r )
+          Serial.printf("delete_all_in_dir: remove of %s failed\n", fn_buf);
+      }
+      else {
+        Serial.printf("delete_all_in_dir: no files to delete found\n");
+        break;
+      }
+    }
+  }
+  else
+    Serial.printf("delete_all_in_dir: could not open root, this seems bad\n");
+
+  Serial.printf("delete_all_in_dir: done\n");
+
+}
+
+
+// have this so we can make sure directories exist before trying to use them
+
+bool make_dir( char *path ) {
+  Serial.printf("make_dir: %s\n", path);
+  return SD.mkdir( path );
+}
+
+
+// create a file at path, dir must already exist, copy len bytes of data d into it
+
+bool create_file( char *path, uint8_t *d, int len ) {
+  bool r = true;
+  Serial.printf("create_file: %s, len = %d\n", path, len);
+
+  file = SD.open( path, FILE_WRITE );
+
+  if( file ) {
+    file.write( d, len );
+    file.close();
+  }
+  else {
+    Serial.printf("### create_file, could not open %s file for writing.\n", path);
+    r = false;
+  }
+
+  return r;
+}
 
 
 /* ================================================================================================================

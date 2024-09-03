@@ -30,6 +30,45 @@
     Settings persistent storage, in EEPROM of Teensy
 */
 
+
+/* === Reset all settings
+
+  Fan Mode                  AUTO
+  Boot screen select        0 (default)
+  MIDI Channel              OMNI
+  MIDI Note Out Route       DIN-5 & USB
+  MIDI Note In Route        DIN-5 & USB
+  MIDI Clock Out Route      DIN-5 & USB
+  MIDI Clock In Route               USB
+  MIDI SysEx Route                  USB
+  MIDI Soft Thru            ENABLED
+  MIDI Start Honor          disabled
+  MIDI Send Velocity        ENABLED
+*/
+
+void eeprom_reset_to_factory_defaults() {
+  
+  eeprom_save_fan_mode(             FAN_AUTO        );
+  eeprom_save_boot_screen_select(   0               );
+
+  eeprom_save_midi_channel(         0               );
+  
+  eeprom_save_midi_note_out_route(  ROUTE_DIN5_USB  );
+  eeprom_save_midi_note_in_route(   ROUTE_DIN5_USB  );
+  
+  eeprom_save_midi_clock_out_route( ROUTE_DIN5_USB  );
+  eeprom_save_midi_clock_in_route(  ROUTE_USB       );      // clock IN can only come from 1 place
+
+  eeprom_save_midi_sysex_route(     ROUTE_USB       );      // sysex can only come from 1 place
+
+  eeprom_save_midi_soft_thru(       true            );
+
+  eeprom_save_midi_start_honor(     false           );
+
+  eeprom_save_midi_send_velocity(   true            );
+}
+
+
 // -----------------------------
 // FAN MODE
 

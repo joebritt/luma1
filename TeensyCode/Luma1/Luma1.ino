@@ -45,13 +45,15 @@
 
 #include "LM1_RAM.h"                // 8KB default snapshot of Z-80 RAM with patterns loaded
 
+// reboot, optionally reset EEPROM settings
+void reboot( bool factory_defaults );
 
 /* ===========================================================================================================
     Version and Serial Number
 */
 
 #define   LUMA1_FW_VERSION_MAJOR    0
-#define   LUMA1_FW_VERSION_MINOR    938
+#define   LUMA1_FW_VERSION_MINOR    939
 
 char serial_number[9];                              // we terminate with 0 so we can use it as a string
 
@@ -270,3 +272,18 @@ void loop() {                                       // much effort is put into m
 
   loop_time_critical();
 }
+
+
+// --- Won't come back from this!
+//     Pass in TRUE to reset EEPROM to factory defaults
+
+void reboot( bool factory_defaults ) {
+  if( factory_defaults ) {
+    eeprom_reset_to_factory_defaults();
+    delay( 1000 );
+  }
+  Serial.println("*** REBOOT ***");
+  WRITE_RESTART(0x5FA0004);  
+}
+
+

@@ -31,7 +31,7 @@
 */
 
 char *voice_bank_name( uint8_t bank ) {
-  return get_sd_voice_bank_name( bcd2dec(bank) );
+  return get_voice_bank_name( bcd2dec(bank) );
 }
 
 

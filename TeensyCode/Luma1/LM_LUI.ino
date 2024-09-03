@@ -398,6 +398,15 @@ char *lui_val_info( uint8_t cmd, uint8_t val, bool val_is_valid ) {
               return (char*)"Screen";
               break;
 
+    case 99:  show_top_banner( (char*)"Reset all settings?" );
+              if( val_is_valid ) {
+                switch( val ) {
+                  case 00:  return (char*)"no";
+                  case 01:  return (char*)"YES";
+                }
+              }
+              break;
+
     default:    Serial.println( cmd, HEX );
                 return (char*)"Unused";
   }
@@ -921,9 +930,9 @@ void handle_local_ui() {
                                   local_ui_state = LUI_CMD_COMPLETE;
                                   break;
                                   
-                        case 99:  Serial.println("*** REBOOT ***");
-                                  WRITE_RESTART(0x5FA0004); 
-                                  local_ui_state = LUI_CMD_COMPLETE;
+                        case 99:  valid_range( 0, 1 );                      // just reboot, or factory reset & reboot?
+                                  input_digits_init_preload( 0 );           // default, just reboot
+                                  local_ui_state = LUI_GET_VAL;
                                   break;
 
                         default:  valid_range( 0, 99 );
@@ -1079,6 +1088,10 @@ void handle_local_ui() {
                                     else {
                                       Serial.print("Entered parameter != 98, NOT FORMATTING");
                                     }
+                                    break;
+
+                          case 99:  reboot( val ? true:false );
+                                    local_ui_state = LUI_CMD_COMPLETE;
                                     break;
                         }
                                   

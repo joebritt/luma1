@@ -96,12 +96,17 @@ extern uint16_t voice_load_bm;
 void load_voice_bank( uint16_t voice_selects, uint8_t bank_num );
 void store_voice_bank( uint16_t voice_selects, uint8_t bank_num );      // copies STAGING to bank_num on SD
 
-char *get_sd_voice_bank_name( uint8_t bank_num );
 
-char *get_cur_bank_name();
+#define MAX_BANKNAME_CHARS          24                                  // including NULL at end
 
-void set_bank_name( uint8_t bank_num, char *name );
+char *get_cur_bank_name();                                              // gets STAGING voice bank name
 
-void voice_bank_dirty( bool d );
+char *get_voice_bank_name( uint8_t bank_num );                          // bank num 00-99, or 255 for STAGING
+void set_voice_bank_name( uint8_t bank_num, char *name );
+
+// use this to write a voice to a specific bank and drum on the SD card
+
+void write_sd_bank_voice( uint8_t bank, uint8_t drum, char *drum_name, uint8_t *sample_data, int len );
+
 
 #endif

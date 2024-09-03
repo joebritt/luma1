@@ -1389,12 +1389,12 @@ void send_sysex( int len, uint8_t *b );
                                     NOT FOUND
     cmd  req
     ---  ---
-    00 / 08   SAMPLE Down / Upload (to/from active bank), 24-char sample name, 7-byte pad (to 32 bytes), followed by uLaw sample data
+    00 / 08   *** LEGACY, DEPRECATED *** SAMPLE Down / Upload (to/from active bank), 24-char sample name, 7-byte pad (to 32 bytes), followed by uLaw sample data
     01 / 09   BANK SAMPLE Down / Upload (to/from SD bank/drum), 1 byte bank#, 1 byte drum sel, 24 byte name, pad 5, uLaw sample data
     02 / 0a   BANK RAM Down / Upload (to/from SD bank), 1 byte bank#, 24 byte name, 6 byte pad, followed by 8KB RAM data
     03 / 0b   
     04 / 0c   8-bit PARAMETER (see param table below), 8-bit param, 8-bit val
-    05 / 0d   UTILITY, 8-bit util id, up to 30 bytes of id specifit data, see table below
+    05 / 0d   NAME UTILITY, used to set/get Voice and RAM bank names, see description below
     06        ERROR REPLY
     07 / 0f   ESCAPE, next byte is an extended cmd, currently unused
  
@@ -1404,12 +1404,12 @@ void send_sysex( int len, uint8_t *b );
     NOT FOUND       no file in that bank                                       
 */
 
-#define CMD_SAMPLE          0x00
+#define CMD_SAMPLE          0x00        // LEGACY, avoid using, doesn't allow specifying specific drum
 #define CMD_SAMPLE_BANK     0x01
 #define CMD_RAM_BANK        0x02
 
 #define CMD_PARAM           0x04
-#define CMD_UTIL            0x05
+#define CMD_NAME_UTIL       0x05
 
 #define CMD_REQUEST         0x08        // OR into CMD to turn it into a REQUEST
 
@@ -1432,7 +1432,7 @@ typedef struct {
 typedef struct {
   uint8_t cmd;                          // 0x01 or 0x09
   char name[24];                        // sample name, C string
-  uint8_t bank;                         // 00 - 99, 0xff for current bank (STAGING) ---> XXX NOTE at least for now, all go to current bank.
+  uint8_t bank;                         // 00 - 99, 0xff for current bank (STAGING)
   uint8_t drum_sel;                     // drum select, 0xff for last triggered drum
   uint8_t pad[5];                       // unused, pad
 } __attribute__((packed)) sx_sample_bank_hdr_t;
@@ -1450,9 +1450,27 @@ typedef struct {
 } __attribute__((packed)) sx_ram_bank_hdr_t;
                                         // struct is followed by RAM data, 8KB
 
-// === PARAMETERS
+// === PARAMETER UTILITIES
 
 //  cmd = 0x04 / 0x0c is set / get parameter
+//  Used to get/set the same parameters you can get/set with the MENU key, plus some extras like "simulate key press"
+
+#define SX_PARAM_FAN              0x00      // Fan Control: Auto / On / Off
+
+#define SX_PARAM_MIDI_CHAN        0x01      // MIDI Channel: 0 (Omni), 1-16
+
+#define SX_PARAM_MIDI_NOTE_OUT    0x02      // MIDI Notes Out: DIN-5, USB, DIN-5 & USB
+#define SX_PARAM_MIDI_NOTE_IN     0x03      // MIDI Notes In: DIN-5, USB, DIN-5 & USB
+#define SX_PARAM_MIDI_CLOCK_OUT   0x04      // MIDI Clock Out: DIN-5, USB, DIN-5 & USB
+#define SX_PARAM_MIDI_CLOCK_IN    0x05      // MIDI Clock In: DIN-5, USB, DIN-5 & USB
+#define SX_PARAM_MIDI_SYSEX       0x06      // MIDI SysEx: DIN-5, USB, DIN-5 & USB
+
+#define SX_PARAM_MIDI_SOFT_THRU   0x07      // MIDI Soft Thru: On / Off
+#define SX_PARAM_MIDI_START_EN    0x08      // MIDI Start Enable: Enabled / Disabled
+#define SX_PARAM_MIDI_SEND_VEL    0x09      // MIDI Send Velocity: Enabled / Disabled
+
+#define SX_PARAM_REBOOT           0xf0      // Reboot: Just Reboot / Reset to Factory Default Settings    WRITE-ONLY
+#define SX_PARAM_KEYPRESS         0xfe      // jam in a key                                               WRITE-ONLY
 
 typedef struct {
   uint8_t cmd;                          // 0x04 or 0x0c
@@ -1461,27 +1479,30 @@ typedef struct {
   uint8_t pad[29];                      // unused, pad
 } __attribute__((packed)) sx_parm_hdr_t;
                                         // nothing after, all data in struct
-// Params:
-#define SX_PARAM_FAN          0x00      // fan mode
-#define SX_PARAM_BOOTSCREEN   0x01      // boot screen
-#define SX_PARAM_KEYPRESS     0x02      // jam in a key
-#define SX_SAVE_VOICE_BANK    0x03      // move STAGING voice bank to bank specified by val (use Program Change to load voice banks)
 
 
-// === UTILITIES
+// === NAME UTILITIES
 
-//  cmd = 0x05 / 0x0d is utility write / read
+//  cmd = 0x05 / 0x0d is name write / read
 
-//  cmd = 0x05 / 0x0d, uid = 0x00, Serial Number write / read
-//  cmd = 0x05 / 0x0d, uid = 0x01, Machine Name write / read
-//  cmd = 0x05 / 0x0d, uid = 0x02, User Name write / read
+//  cmd = 0x05 / 0x0d, name type = 0x00, Voice Bank Name write / read
+//  cmd = 0x05 / 0x0d, name type = 0x01, RAM Pattern Bank Name write / read
+//  cmd = 0x05 / 0x0d, name type = 0x02, Teensy code version read-only
+
+// Name Types:
+#define SX_VOICE_BANK_NAME    0x00
+#define SX_RAM_BANK_NAME      0x01
+#define SX_TEENSY_VERSION     0x02      // this one can only be read
+#define SX_SERIAL_NUMBER      0x03      // 8 char ASCII string, null terminated
 
 typedef struct {
   uint8_t cmd;                          // 0x05 or 0x0d
-  uint8_t uid;                          // util id
-  char s[24];                           // C string value
-  uint8_t pad[6];                       // unused, pad
-} __attribute__((packed)) sx_util_str_hdr_t;
+  char name[24];                        // bank name, C string, 24 chars max
+  uint8_t bank;                         // bank number, 00 - 99, 0xff = currently active
+  uint8_t name_type;                    // name type
+  uint8_t pad[5];                       // unused, pad
+} __attribute__((packed)) sx_name_util_hdr_t;
+                                        // nothing after, all data in struct
 
 
 
@@ -1629,7 +1650,7 @@ void send_sample_sysex( uint8_t banknum, uint8_t drum_sel ) {
   uint8_t *sample;
   sx_sample_bank_hdr_t *hdr = (sx_sample_bank_hdr_t*)sysex_decode_buf;
 
-  Serial.printf("SysEx send Sample\n");
+  Serial.printf("--- SysEx send Sample request\n");
   
   // -- go get it from SD card
 
@@ -1647,9 +1668,14 @@ void send_sample_sysex( uint8_t banknum, uint8_t drum_sel ) {
     hdr->bank = banknum;                                                        // 0xff for current working pattern RAM
     hdr->drum_sel = drum_sel;
   
-    sprintf( hdr->name, vname );
+    sprintf( hdr->name, vname );                                                // put the filename in the header
   
-    memcpy( &sysex_decode_buf[sizeof(sx_sample_bank_hdr_t)], sample, vlen );
+    /*
+    Serial.printf("send_sample_sysex: sysex_decode_buf @ %08x, header size = %d (%02x), sample start @ %08x\n",
+                                    sysex_decode_buf, sizeof(sx_sample_bank_hdr_t), sizeof(sx_sample_bank_hdr_t), &sysex_decode_buf[sizeof(sx_sample_bank_hdr_t)]);
+    */
+
+    memcpy( &sysex_decode_buf[sizeof(sx_sample_bank_hdr_t)], sample, vlen );    // copy the sample data into the sysex message buffer
   
     // --- encode
   
@@ -1664,6 +1690,8 @@ void send_sample_sysex( uint8_t banknum, uint8_t drum_sel ) {
     */
       
     sysex_encode_buf[0] = OUR_MIDI_MFR_ID;
+    
+    // encode (no hi bits set) the header and sample data, right after the MIDI Manufacturer ID, which is not encoded (hi bit always 0)
     
     encoded_size = pack_sysex_data( vlen + sizeof(sx_sample_bank_hdr_t), sysex_decode_buf, &sysex_encode_buf[1] );
   
@@ -1684,37 +1712,49 @@ void sysex_sample_load( uint8_t *se, int len ) {
   char vname[24];
   sx_sample_bank_hdr_t *hdr = (sx_sample_bank_hdr_t*)se;
 
-  Serial.printf("\n-- Sysex Sample Load\n");
+  Serial.printf("-- Sysex Sample Load\n");
 
-  Serial.printf("   Sample len: %d\n", len - SYSEX_HEADER_SIZE );
-  Serial.printf("   Sample name: %s\n", (char*)&se[1] );                 // name is just past cmd byte
+  Serial.printf("   Sample len: %d\n", len - sizeof(sx_sample_bank_hdr_t) );
+  Serial.printf("   Sample name: %s\n", hdr->name );
   
   // sanity check the name
   
-  if( strlen( (char*)&sysex_decode_buf[1] ) == 0 )                      // any string there?
+  if( strlen( hdr->name ) == 0 )                                                // any string there?
     snprintf( vname, 24, "NONAME.BIN" );
   else
-    snprintf( vname, 24, "%s", (char*)&sysex_decode_buf[1] );
+    snprintf( vname, 24, "%s", hdr->name );
 
-  sysex_load_prologue();                                                                                  // take the bus, pause hihat
+  // now load it into the hardware and/or SD card
 
-  if( se[0] == CMD_SAMPLE )                                                                               // legacy cmd 0 sample?                            
-    set_voice( last_drum, &sysex_decode_buf[SYSEX_HEADER_SIZE], (len - SYSEX_HEADER_SIZE), vname );       // load into last active drum
-  else {                                                                                                  // must be cmd 1, with bank and drum selects
-    set_voice( drum_sel_2_voice(hdr->drum_sel), 
-                  &sysex_decode_buf[SYSEX_HEADER_SIZE], (len - SYSEX_HEADER_SIZE), vname );               // load into selected drum
+  sysex_load_prologue();                                                        // take the bus, pause hihat
+
+  if( hdr->cmd == CMD_SAMPLE ) {                                                    // legacy cmd 0 sample?                            
+    set_voice( last_drum, &sysex_decode_buf[sizeof(sx_sample_bank_hdr_t)], 
+                  (len - sizeof(sx_sample_bank_hdr_t)), vname );                    // load into last active drum
+  }
+  else {                                                                            // must be cmd 1, with bank and drum selects
+    if( hdr->bank == BANK_STAGING ) {
+      set_voice( drum_sel_2_voice(hdr->drum_sel), 
+                  &sysex_decode_buf[sizeof(sx_sample_bank_hdr_t)], 
+                  (len - sizeof(sx_sample_bank_hdr_t)), vname );                    // load into selected drum card, will also put in STAGING
+    }
+    else {
+      write_sd_bank_voice( hdr->bank, hdr->drum_sel, hdr->name,                     // copy into selected SD card bank and voice directory (and delete any old one there)
+                  &sysex_decode_buf[sizeof(sx_sample_bank_hdr_t)], 
+                  (len - sizeof(sx_sample_bank_hdr_t)) );                           // sample data is right after sx_sample_bank_hdr_t struct
+    }
   }
 
-  voice_bank_dirty( true );
-  
-  sysex_load_epilogue();                                                                                  // release the bus
+  sysex_load_epilogue();                                                        // release the bus
+
+  Serial.printf("-- Sysex Sample Load complete\n\n");
 }
 
 
 void sysex_sample_request( uint8_t *se, int len ) {
   sx_sample_bank_hdr_t *hdr = (sx_sample_bank_hdr_t*)se;
 
-  Serial.printf("\n-- Sysex Sample Request\n");
+  Serial.printf("-- Sysex Sample Request\n");
 
   Serial.printf("   Bank %02d, Drum %02d (%s)\n", hdr->bank, hdr->drum_sel, drum_sel_2_name(hdr->drum_sel));
 
@@ -1727,26 +1767,237 @@ void sysex_sample_request( uint8_t *se, int len ) {
 */
 
 void sysex_param( uint8_t *se, int len ) {
-  Serial.printf("Param set: \n");
+  uint8_t v;
+  sx_parm_hdr_t *hdr = (sx_parm_hdr_t*)se;
+
+  v = hdr->val;     // new setting
+
+  // figure out which parameter
+
+  Serial.printf("\n--- Parameter set: \n");
+
+  switch( hdr->param ) {
+    case SX_PARAM_FAN:            Serial.printf("   Fan Mode: %02d\n", v );
+                                  set_fan_mode( v );
+                                  eeprom_save_fan_mode( v );
+                                  break;
+
+    case SX_PARAM_MIDI_CHAN:      Serial.printf("   MIDI Channel: %02d\n", v );
+                                  set_midi_channel( v );
+                                  break;
+
+    case SX_PARAM_MIDI_NOTE_OUT:  Serial.printf("   MIDI Note Out: %02d\n", v );
+                                  set_midi_note_out_route( v );
+                                  eeprom_save_midi_note_out_route( v );
+                                  break;
+
+    case SX_PARAM_MIDI_NOTE_IN:   Serial.printf("   MIDI Note In: %02d\n", v );
+                                  set_midi_note_in_route( v );
+                                  eeprom_save_midi_note_in_route( v );
+                                  break;
+
+    case SX_PARAM_MIDI_CLOCK_OUT: Serial.printf("   MIDI Clock Out: %02d\n", v );
+                                  set_midi_clock_out_route( v );
+                                  eeprom_save_midi_clock_out_route( v );                                  
+                                  break;
+
+    case SX_PARAM_MIDI_CLOCK_IN:  Serial.printf("   MIDI Clock In: %02d\n", v );
+                                  set_midi_clock_in_route( v );
+                                  eeprom_save_midi_clock_in_route( v );
+                                  break;
+
+    case SX_PARAM_MIDI_SYSEX:     Serial.printf("   MIDI SysEx: %02d\n", v );
+                                  set_midi_sysex_route( v );
+                                  eeprom_save_midi_sysex_route( v );
+                                  break;
+
+    case SX_PARAM_MIDI_SOFT_THRU: Serial.printf("   MIDI Soft Thru: %02d\n", v );
+                                  set_midi_soft_thru( v ? true:false );
+                                  eeprom_save_midi_soft_thru( v ? true:false );    
+                                  break;
+
+    case SX_PARAM_MIDI_START_EN:  Serial.printf("   MIDI Start Enable: %02d\n", v );
+                                  honorMIDIStartStop( v ? true:false );
+                                  eeprom_save_midi_start_honor( v ? true:false );
+                                  break;
+
+    case SX_PARAM_MIDI_SEND_VEL:  Serial.printf("   MIDI Start Enable: %02d\n", v );
+                                  set_midi_send_vel( v ? true:false );
+                                  eeprom_save_midi_send_velocity( v ? true:false );    
+                                  break;
+
+    case SX_PARAM_REBOOT:         Serial.printf("   Reboot: %02d\n", v );     reboot( v ? true:false );           break;
+
+    case SX_PARAM_KEYPRESS:       Serial.printf("   Keypress: %02d\n", v );
+                                  break;
+
+    default:                      Serial.printf("   *** Unexpected param: %02x, ignoring\n\n",hdr->param);
+                                  break;
+  }
+
 }
 
 
 void sysex_param_request( uint8_t *se, int len ) {
-  Serial.printf("Param request: \n");
+  int encoded_size = 0;
+  uint8_t v;
+  sx_parm_hdr_t *hdr = (sx_parm_hdr_t*)se;
+
+  // figure out which parameter
+
+  Serial.printf("--- Parameter GET: \n");
+
+  switch( hdr->param ) {
+    case SX_PARAM_FAN:            v = get_fan_mode();                 Serial.printf("   Fan Mode: %02d\n", v );           break;
+
+    case SX_PARAM_MIDI_CHAN:      v = get_midi_channel();             Serial.printf("   MIDI Channel: %02d\n", v );       break;
+
+    case SX_PARAM_MIDI_NOTE_OUT:  v = get_midi_note_out_route();      Serial.printf("   MIDI Note Out: %02d\n", v );      break;
+
+    case SX_PARAM_MIDI_NOTE_IN:   v = get_midi_note_in_route();       Serial.printf("   MIDI Note In: %02d\n", v );       break;
+
+    case SX_PARAM_MIDI_CLOCK_OUT: v = get_midi_clock_out_route();     Serial.printf("   MIDI Clock Out: %02d\n", v );     break;
+
+    case SX_PARAM_MIDI_CLOCK_IN:  v = get_midi_clock_in_route();      Serial.printf("   MIDI Clock In: %02d\n", v );      break;
+
+    case SX_PARAM_MIDI_SYSEX:     v = get_midi_sysex_route();         Serial.printf("   MIDI SysEx: %02d\n", v );         break;
+
+    case SX_PARAM_MIDI_SOFT_THRU: v = get_midi_soft_thru()?1:0;       Serial.printf("   MIDI Soft Thru: %02d\n", v );     break;
+
+    case SX_PARAM_MIDI_START_EN:  v = honorMIDIStartStopState()?1:0;  Serial.printf("   MIDI Start Enable: %02d\n", v );  break;
+
+    case SX_PARAM_MIDI_SEND_VEL:  v = get_midi_send_vel()?1:0;        Serial.printf("   MIDI Start Enable: %02d\n", v );  break;
+
+    default:                      Serial.printf("   *** Unexpected param: %02x, ignoring\n\n",hdr->param);                break;
+  }
+
+  hdr->val = v;
+
+  // --- build & send the response
+
+  hdr->cmd = CMD_PARAM;                           // respond with REQUEST bit cleared
+                                                  // param is still valid, val has been filled in
+  // --- encode
+
+  /*
+      The MIDI library wraps our data with the needed F0 start and F7 end markers.
+      We jam our mfr ID at the start, unencoded and always with the hi bit clear.
+
+      F0
+      mfr ID
+      ...encoded data, all hi bits clear...
+      F7
+  */
+    
+  sysex_encode_buf[0] = OUR_MIDI_MFR_ID;
+  
+  encoded_size = pack_sysex_data( sizeof(sx_parm_hdr_t), (unsigned char*)hdr, &sysex_encode_buf[1] );      // len, in*, out*
+
+  encoded_size += 1;                                // for the unencoded mfr ID in location 0
+
+  // --- transmit
+
+  send_sysex( encoded_size, sysex_encode_buf );
 }
 
 
 /* ---------------------------------------------------------------------------------------
-    SysEx Utility Commands / Requests
+    SysEx Name Utility Commands / Requests
 */
 
-void sysex_util( uint8_t *se, int len ) {
-  Serial.printf("Utility: \n");
+// Set a Voice Bank or RAM Pattern Bank name
+
+void sysex_name_util( uint8_t *se, int len ) {
+  char vname[24];
+  sx_name_util_hdr_t *hdr = (sx_name_util_hdr_t*)se;
+
+  // sanity check the name
+  
+  if( strlen( hdr->name ) == 0 )                      // any string there?
+    snprintf( vname, 24, "NO NAME" );
+  else
+    snprintf( vname, 24, "%s", hdr->name );
+
+  Serial.printf("-- Set Name Utility: \n");
+
+  // figure out what kind of name it is
+
+  switch( hdr->name_type ) {
+    case SX_VOICE_BANK_NAME:  Serial.printf("   Voice Bank name: %s\n", vname );
+                              set_voice_bank_name( hdr->bank, vname );
+                              break;
+
+    case SX_RAM_BANK_NAME:    Serial.printf("   RAM Pattern Bank name: %s\n", vname );
+                              Serial.printf("   *** CAN ONLY *READ* RAM PATTERN BANK NAME FOR NOW\n\n");
+                              break;
+
+    case SX_SERIAL_NUMBER:    Serial.printf("   Serial Number: %s\n", vname );
+                              eeprom_set_serial_number( vname );                // will only store first 8 chars
+                              eeprom_get_serial_number( serial_number );
+                              break;
+
+    default:                  Serial.printf("   *** Unexpected name_type: %02x, ignoring\n\n",hdr->name_type);
+                              break;
+  }
 }
 
 
-void sysex_util_request( uint8_t *se, int len ) {
-  Serial.printf("Utility request: \n");
+void sysex_name_util_request( uint8_t *se, int len ) {
+  int encoded_size = 0;
+  sx_name_util_hdr_t *hdr = (sx_name_util_hdr_t*)se;
+
+  Serial.printf("-- Get Name Utility: \n");
+
+  // figure out what kind of name we are being asked for
+
+  switch( hdr->name_type ) {
+    case SX_VOICE_BANK_NAME:  snprintf( hdr->name, 24, get_voice_bank_name( hdr->bank ) );
+                              Serial.printf("   Voice Bank name: %s\n", hdr->name );
+                              break;
+
+    case SX_RAM_BANK_NAME:    snprintf( hdr->name, 24, get_ram_bank_name( hdr->bank ) );
+                              Serial.printf("   RAM Pattern Bank name: %s\n", hdr->name );
+                              break;
+
+    case SX_TEENSY_VERSION:   snprintf( hdr->name, 24, "v%d.%d", LUMA1_FW_VERSION_MAJOR, LUMA1_FW_VERSION_MINOR );
+                              Serial.printf("   Teensy Code Version: %s\n", hdr->name );
+                              break;
+
+    case SX_SERIAL_NUMBER:    snprintf( hdr->name, 24, serial_number );
+                              Serial.printf("   Serial Number: %s\n", hdr->name );
+                              break;
+
+    default:                  snprintf( hdr->name, 24, "ERROR INVALID REQUEST" );
+                              Serial.printf("   *** Unexpected name_type: %02x, returning ERROR\n\n",hdr->name_type);
+                              break;
+  }
+  
+  // --- build & send the response
+
+  hdr->cmd = CMD_NAME_UTIL;                       // respond with REQUEST bit cleared
+                                                  // bank is still valid, name_type is still valid, name has been filled in
+  
+  // --- encode
+
+  /*
+      The MIDI library wraps our data with the needed F0 start and F7 end markers.
+      We jam our mfr ID at the start, unencoded and always with the hi bit clear.
+
+      F0
+      mfr ID
+      ...encoded data, all hi bits clear...
+      F7
+  */
+    
+  sysex_encode_buf[0] = OUR_MIDI_MFR_ID;
+  
+  encoded_size = pack_sysex_data( sizeof(sx_name_util_hdr_t), (unsigned char*)hdr, &sysex_encode_buf[1] );      // len, in*, out*
+
+  encoded_size += 1;                                // for the unencoded mfr ID in location 0
+
+  // --- transmit
+
+  send_sysex( encoded_size, sysex_encode_buf );
 }
 
 
@@ -1769,7 +2020,7 @@ void send_sysex( int len, uint8_t *b ) {
     midiDIN.sendSysEx( len, b );
   }
   
-  Serial.printf("done!\n");
+  Serial.printf("done!\n\n");
 }
 
 
@@ -1883,16 +2134,6 @@ bool process_sysex_byte( uint8_t b ) {
 
 
 
-#define CMD_SAMPLE          0x00
-#define CMD_SAMPLE_BANK     0x01
-#define CMD_RAM_BANK        0x02
-
-#define CMD_PARAM           0x04
-#define CMD_UTIL            0x05
-
-#define CMD_REQUEST         0x08        // OR into CMD to turn it into a REQUEST
-
-
 // mySystemExclusiveChunk() called for variable-sized sysex chunks as received. We use a state machine to decode a stream of these
 //  variable-sized sysex chunks. "last" will be set to true for the final chunk.
 //
@@ -1900,7 +2141,7 @@ bool process_sysex_byte( uint8_t b ) {
 
 void mySystemExclusiveChunk(const byte *d, uint16_t len, bool last) {
 
-  Serial.printf("\n-- Got Sysex: %d bytes, last: %d, err: %d\n", len, last, sysex_err_abort );
+  Serial.printf("-- Got Sysex chunk: %d bytes, last: %d, err: %d\n", len, last, sysex_err_abort );
 
   // --- PROCESS EACH BLOCK
   
@@ -1924,7 +2165,7 @@ void mySystemExclusiveChunk(const byte *d, uint16_t len, bool last) {
 
         case CMD_PARAM:                         sysex_param( sysex_decode_buf, sysex_decode_idx );                break;
 
-        case CMD_UTIL:                          sysex_util( sysex_decode_buf, sysex_decode_idx );                 break;
+        case CMD_NAME_UTIL:                     sysex_name_util( sysex_decode_buf, sysex_decode_idx );            break;
 
         // --- sysex UPLOAD REQUEST types
 
@@ -1935,7 +2176,7 @@ void mySystemExclusiveChunk(const byte *d, uint16_t len, bool last) {
 
         case (CMD_PARAM + CMD_REQUEST):         sysex_param_request( sysex_decode_buf, sysex_decode_idx );        break;
 
-        case (CMD_UTIL + CMD_REQUEST):          sysex_util_request( sysex_decode_buf, sysex_decode_idx );         break;
+        case (CMD_NAME_UTIL + CMD_REQUEST):     sysex_name_util_request( sysex_decode_buf, sysex_decode_idx );    break;
       }
     }
   }
@@ -1998,7 +2239,7 @@ int pack_sysex_data( int len, uint8_t *in, uint8_t *out ) {
 
   } while( in_idx < len );
   
-  Serial.printf("\n== pack_sysex_data: len = %d in = %d / out = %d\n\n", len, in_idx, out_idx);
+  Serial.printf("== pack_sysex_data: len = %d in = %d / out = %d\n", len, in_idx, out_idx);
   
   return out_idx+1;
 }

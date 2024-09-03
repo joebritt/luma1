@@ -57,6 +57,26 @@
 #define SERIAL_NUM_LEN              8
 
 
+/* === Reset all settings
+
+  Fan Mode                  AUTO
+  Boot screen select        0 (default)
+  MIDI Channel              OMNI
+  MIDI Note Out Route       DIN-5 & USB
+  MIDI Note In Route        DIN-5 & USB
+  MIDI Clock Out Route      DIN-5 & USB
+  MIDI Clock In Route       DIN-5 & USB
+  MIDI SysEx Route          DIN-5 & USB
+  MIDI Soft Thru            ENABLED
+  MIDI Start Honor          disabled
+  MIDI Send Velocity        ENABLED
+*/
+
+void eeprom_reset_to_factory_defaults();
+
+
+// --- Nonvolatile Settings Management
+
 void eeprom_save_fan_mode( uint8_t m );
 uint8_t eeprom_load_fan_mode();
 

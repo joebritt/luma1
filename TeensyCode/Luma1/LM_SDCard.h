@@ -44,6 +44,11 @@ void delete_and_copy( char *dst, char * src, char *default_data, int default_len
                                                                                         // Then copy the file at src to the filename dst.
                                                                                         // If src doesn't exist, copy default_len bytes from default_data[] to dst.
 
+void delete_all_in_dir( char *dirname );                // delete any/all files in dirname
+
+bool create_file( char *path, uint8_t *d, int len );    // create a file at path, copy len bytes of data d into it
+
+
 // -- SD Card ROM and RAM file utilities
 
 bool load_z80_rom_file( char *rom_fn );             // normally only called by startup code, typically loads 
