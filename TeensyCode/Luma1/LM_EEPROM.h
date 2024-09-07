@@ -50,6 +50,8 @@
 
 #define LM_EEPROM_MIDI_SEND_VEL     12
 
+#define LM_EEPROM_MIDI_SYSEX_DLY    13        // delay between sysex chunks
+
 
 // ... available ...
 
@@ -113,6 +115,9 @@ bool eeprom_load_midi_start_honor();
 
 void eeprom_save_midi_send_velocity( bool on);
 bool eeprom_load_midi_send_velocity();
+
+void eeprom_save_midi_sysex_delay( uint8_t dly );
+uint8_t eeprom_load_midi_sysex_delay();
 
 uint16_t eeprom_next_rambank_num();
 

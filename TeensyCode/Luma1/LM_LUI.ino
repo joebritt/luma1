@@ -161,6 +161,7 @@ char *lui_actions( uint8_t cmd ) {
     case 0x86:  return (char*)"MIDI Soft Thru";
     case 0x87:  return (char*)"MIDI Start Enabl";
     case 0x88:  return (char*)"MIDI Send Vel";
+    case 0x89:  return (char*)"MIDI SysEx Delay";
     case 0x90:  return (char*)"Boot Screen";
     case 0x97:  return (char*)"SD Dir";
     case 0x98:  return (char*)"Format SD";
@@ -394,6 +395,10 @@ char *lui_val_info( uint8_t cmd, uint8_t val, bool val_is_valid ) {
               }
               break;
 
+    case 89:  show_top_banner( (char*)"MIDI SysEx Delay" );
+              return (char*)"ms";
+              break;
+              
     case 90:  show_top_banner( (char*)"Choose Boot Screen" );
               return (char*)"Screen";
               break;
@@ -920,6 +925,11 @@ void handle_local_ui() {
                                   local_ui_state = LUI_GET_VAL;
                                   break;
 
+                        case 89:  valid_range( 0, 99 );                     // delay in ms
+                                  input_digits_init_preload( dec2bcd( get_midi_sysex_delay() ) );
+                                  local_ui_state = LUI_GET_VAL;
+                                  break;
+
                         case 90:  valid_range( 0, 2 );                      // 3 boot screens
                                   input_digits_init();
                                   local_ui_state = LUI_GET_VAL;
@@ -1074,6 +1084,11 @@ void handle_local_ui() {
                           case 88:  Serial.printf("CMD: MIDI Send Vel %02x\n", val );
                                     set_midi_send_vel( val ? true:false );
                                     eeprom_save_midi_send_velocity( val ? true:false );
+                                    break;
+                                    
+                          case 89:  Serial.printf("CMD: MIDI Sysex Delay %02d\n", val );
+                                    set_midi_sysex_delay( val );
+                                    eeprom_save_midi_sysex_delay( val );
                                     break;
 
                           case 90:  Serial.print("CMD: Boot Screen Select "); Serial.println( val );

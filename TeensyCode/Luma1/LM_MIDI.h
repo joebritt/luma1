@@ -113,8 +113,15 @@ bool get_midi_soft_thru();
 
 // --- Send Velocity
 
-void set_midi_send_vel( bool on );        // if TRUE, send velocity for primary note mapping.
-bool get_midi_send_vel();                 // if FALSE, send vel = 127 and use secondary note mapping for soft sounds
+void set_midi_send_vel( bool on );            // if TRUE, send velocity for primary note mapping.
+bool get_midi_send_vel();                     // if FALSE, send vel = 127 and use secondary note mapping for soft sounds
+
+// --- Sysex Delay
+
+#define MIDI_SYSEX_DELAY_DEFAULT      50      // 50 ms default
+
+void set_midi_sysex_delay( uint8_t del );     // time between sysex chunks
+uint8_t get_midi_sysex_delay();
 
 
 // drum trigger to/from MIDI

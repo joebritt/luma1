@@ -66,6 +66,12 @@ bool midi_send_velocity;          // initialized from EEPROM
 bool honor_start_stop;            // initialized from EEPROM
 
 
+// --- SYSEX CHUNK DELAY
+
+uint8_t sysex_chunk_delay;        // initialized from EEPROM, delay between chunks, in ms
+
+
+
 // --- Updated by key, sequence, or midi drum trigger, selects which sound to load
 
 uint16_t last_drum = STB_BASS;
@@ -172,6 +178,7 @@ void init_midi() {
   set_midi_clock_in_route( eeprom_load_midi_clock_in_route() );
 
   set_midi_sysex_route( eeprom_load_midi_sysex_route() );
+  set_midi_sysex_delay( eeprom_load_midi_sysex_delay() );
 
   midi_soft_thru = eeprom_load_midi_soft_thru();
 
@@ -312,6 +319,16 @@ void set_midi_send_vel( bool on ) {
 }
 
 bool get_midi_send_vel()                   {     return midi_send_velocity;        }
+
+
+// --- Sysex Delay
+
+void set_midi_sysex_delay( uint8_t del ) {
+  Serial.printf("Setting MIDI Sysex Delay to %d\n", del );
+  sysex_chunk_delay = del;  
+}
+
+uint8_t get_midi_sysex_delay()             {     return sysex_chunk_delay;         }
 
 
 /* ---------------------------------------------------------------------------------------
@@ -1434,7 +1451,8 @@ typedef struct {
   char name[24];                        // sample name, C string
   uint8_t bank;                         // 00 - 99, 0xff for current bank (STAGING)
   uint8_t drum_sel;                     // drum select, 0xff for last triggered drum
-  uint8_t pad[5];                       // unused, pad
+  uint16_t sample_len;                  // sample length in bytes
+  uint8_t pad[3];                       // unused, pad
 } __attribute__((packed)) sx_sample_bank_hdr_t;
 
 
@@ -1669,6 +1687,8 @@ void send_sample_sysex( uint8_t banknum, uint8_t drum_sel ) {
     hdr->drum_sel = drum_sel;
   
     sprintf( hdr->name, vname );                                                // put the filename in the header
+
+    hdr->sample_len = vlen;                                                     // put the # of bytes in the sample in the header
   
     /*
     Serial.printf("send_sample_sysex: sysex_decode_buf @ %08x, header size = %d (%02x), sample start @ %08x\n",
@@ -2006,21 +2026,72 @@ void sysex_name_util_request( uint8_t *se, int len ) {
     SysEx utilities
 */
 
-void send_sysex( int len, uint8_t *b ) {
+/*
+    Some USB MIDI receivers (cough, Windows, cough) have trouble reliably consuming a large sysex message.
 
-  Serial.printf("Sending %d bytes of SysEx...", len );
-  
+    So we chunk the sysex message up into bite-sized SYSEX_CHUNK_BYTES-byte pieces.
+
+    We delay sysex_chunk_delay ms between each chunk.
+    MENU 89 can be used to adjust the delay.
+*/
+
+#define SYSEX_CHUNK_BYTES         256                             // sysex chunk payload size
+
+uint8_t se_chunk[SYSEX_CHUNK_BYTES+1];                            // make this one byte bigger for the start (0xf0) & end (0xf7) sysex bytes
+
+void send_sysex( int len, uint8_t *b ) {
+  int se_chunks;
+  int se_remainder;
+  uint8_t *in_buf;
+
+  Serial.printf("Sending %d bytes of SysEx ", len );
+
   if( get_midi_sysex_route() & ROUTE_USB ) {
     Serial.printf("via USB...");
-    usbMIDI.sendSysEx( len, b );
+
+    if( len <= SYSEX_CHUNK_BYTES ) {
+      usbMIDI.sendSysEx( len, b );                                // small messages we just send the easy way
+    }
+    else {
+      in_buf = b;
+        
+      se_chunks = len / SYSEX_CHUNK_BYTES;
+    
+      se_remainder = len - (se_chunks * SYSEX_CHUNK_BYTES);
+    
+      Serial.printf("Chunks: %d, Remainder: %d\n", se_chunks, se_remainder);
+  
+      // --- FIRST CHUNK, includes 0xf0 start byte
+      se_chunk[0] = 0xf0;                                           // sysex START
+      memcpy( &se_chunk[1], in_buf, SYSEX_CHUNK_BYTES );
+      usbMIDI.sendSysEx( SYSEX_CHUNK_BYTES+1, se_chunk, true );     // true -> tell midi lib to NOT add F0/F7
+      delay( sysex_chunk_delay );
+      Serial.printf("Sent chunk 1/%d\n", se_chunks);
+      in_buf += SYSEX_CHUNK_BYTES;
+  
+      // --- CHUNK LOOP
+      for( int xxx = 0; xxx != (se_chunks-1); xxx++ ) {             // already sent the first one
+        usbMIDI.sendSysEx( SYSEX_CHUNK_BYTES, in_buf, true );       // true -> tell midi lib to NOT add F0/F7
+        delay( sysex_chunk_delay );
+        Serial.printf("Sent chunk %d/%d\n", xxx+1, se_chunks);
+        in_buf += SYSEX_CHUNK_BYTES;
+      }
+  
+      // --- LAST CHUNK, ends with 0xf7 end byte, could be remainder bytes long, could be just the 0xf7 if no remainder
+      if( se_remainder )
+        memcpy( &se_chunk, in_buf, se_remainder );
+      se_chunk[se_remainder] = 0xf7;                                // sysex END
+      usbMIDI.sendSysEx( se_remainder+1, se_chunk, true );          // true -> tell midi lib to NOT add F0/F7
+      Serial.printf("Sent remainder chunk\n");
+    }
   }
   
   if( get_midi_sysex_route() & ROUTE_DIN5 ) {
-    Serial.printf("via DIN-5...");
+    Serial.printf("via DIN-5...\n");
     midiDIN.sendSysEx( len, b );
   }
   
-  Serial.printf("done!\n\n");
+  Serial.printf("...done!\n\n");
 }
 
 

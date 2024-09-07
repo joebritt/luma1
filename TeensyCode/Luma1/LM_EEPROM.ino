@@ -66,6 +66,8 @@ void eeprom_reset_to_factory_defaults() {
   eeprom_save_midi_start_honor(     false           );
 
   eeprom_save_midi_send_velocity(   true            );
+
+  eeprom_save_midi_sysex_delay(     50              );      // default 50ms delay
 }
 
 
@@ -291,7 +293,7 @@ bool eeprom_load_midi_start_honor() {
 
 // --- MIDI SEND VELOCITY
 
-void eeprom_save_midi_send_velocity( bool on) {
+void eeprom_save_midi_send_velocity( bool on ) {
   Serial.printf("Saving MIDI Send Velocity: %s\n", on?"ENABLED":"disabled");
   EEPROM.write( LM_EEPROM_MIDI_SEND_VEL, on?1:0 );
 }
@@ -302,6 +304,27 @@ bool eeprom_load_midi_send_velocity() {
   Serial.printf("Loaded MIDI Send Velocity: %s\n", m?"ENABLED":"disabled" );
   return m?true:false;
 }
+
+
+// --- MIDI SYSEX DELAY
+
+void eeprom_save_midi_sysex_delay( uint8_t dly ) {
+  Serial.printf("Saving MIDI Sysex Delay: %d\n", dly);
+  EEPROM.write( LM_EEPROM_MIDI_SYSEX_DLY, dly );
+}
+
+uint8_t eeprom_load_midi_sysex_delay() {
+  uint8_t m;
+  m = EEPROM.read( LM_EEPROM_MIDI_SYSEX_DLY );
+  Serial.printf("Loaded MIDI Sysex Delay: %d\n", m );
+  if( m > 99 ) {
+    Serial.printf("Looks uninitialized, setting to default value\n");
+    m = MIDI_SYSEX_DELAY_DEFAULT;
+    eeprom_save_midi_sysex_delay( m );
+  }
+  return m;
+}
+
 
 
 // --- MONOTONICALLY INCREMENTING NUMBER FOR RAM BANK NAMES
