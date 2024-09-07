@@ -53,7 +53,7 @@ void reboot( bool factory_defaults );
 */
 
 #define   LUMA1_FW_VERSION_MAJOR    0
-#define   LUMA1_FW_VERSION_MINOR    939
+#define   LUMA1_FW_VERSION_MINOR    940
 
 char serial_number[9];                              // we terminate with 0 so we can use it as a string
 
@@ -285,5 +285,3 @@ void reboot( bool factory_defaults ) {
   Serial.println("*** REBOOT ***");
   WRITE_RESTART(0x5FA0004);  
 }
-
-
