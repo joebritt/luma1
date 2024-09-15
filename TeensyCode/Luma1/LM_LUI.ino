@@ -987,7 +987,7 @@ void handle_local_ui() {
                                     break;
   
                           case 03:  Serial.print("CMD: Store RAM Bank "); Serial.println( val );
-                                    save_ram_bank( val );
+                                    copy_ram_to_sd_bank( val );
                                     break;
   
                           case 55:  //Serial.print("CMD: EPROM Dump "); Serial.println( val );

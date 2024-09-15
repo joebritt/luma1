@@ -345,8 +345,12 @@ void copy_z80_ram( uint8_t *img ) {
   
   Serial.print("Copying Z-80 RAM image to Teensy buffer...");
 
+  teensy_drives_z80_bus( true );                    // this gets called from a couple of places, there is a counting semaphore around taking the bus
+
   for( int xxx = 0; xxx != (8*1024); xxx++ )
     img[xxx] = z80_bus_read( addr++ );
+
+  teensy_drives_z80_bus( false );
 
   Serial.println("done!");
 }

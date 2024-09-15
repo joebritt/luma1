@@ -51,23 +51,28 @@ bool create_file( char *path, uint8_t *d, int len );    // create a file at path
 
 // -- SD Card ROM and RAM file utilities
 
-bool load_z80_rom_file( char *rom_fn );             // normally only called by startup code, typically loads 
+bool load_z80_rom_file( char *rom_fn );                 // normally only called by startup code, typically loads 
 
-void save_ram_bank( uint8_t banknum );              // snapshot Z-80 RAM and save to /RAMBANKS/banknum/RAM_IMAGE_<checksum>.bin
+void copy_ram_to_sd_bank( uint8_t banknum );            // save currently active RAM to a bank on the SD card
 
-uint8_t *get_ram_bank( uint8_t banknum );           // return buf with 8KB from SD card file (banknum 00-99) or local Z-80 RAM (banknum = 0xff), NULL for error
-void load_ram_bank( uint8_t banknum );              // replace Z-80 RAM with first file found in /RAMBANKS/banknum
+void store_ram_bank( uint8_t *ram_image, uint8_t banknum, char *ram_fn );    // save ram_image to /RAMBANKS/banknum/ram_fn. if banknum == 255, save to active Z-80 RAM & reboot 
 
-char *get_ram_bank_name( uint8_t bank_num );        // 0xff for current Z-80 RAM
+uint8_t *get_ram_bank( uint8_t banknum );               // return buf with 8KB from SD card file (banknum 00-99) or local Z-80 RAM (banknum = 0xff), NULL for error
+void load_ram_bank( uint8_t banknum );                  // replace Z-80 RAM with first file found in /RAMBANKS/banknum
+
+char *get_ram_bank_name( uint8_t bank_num );            // 0xff for current Z-80 RAM
+
+void set_active_ram_bank_name( char *ram_fn );          // set active RAM bank (bank 255) name
+char *get_active_ram_bank_name();                       // if there is a name, return it, otherwise return NULL
 
 
 // --- Miscellaneous SD card routines
 
-uint16_t checksum( uint8_t *d, int len );           // calculate a 16 bit checksum, used for naming RAM save files
+uint16_t checksum( uint8_t *d, int len );               // calculate a 16 bit checksum, used for naming RAM save files
 
-void sd_card_ls();                                  // dump the SD card directory
+void sd_card_ls();                                      // dump the SD card directory
 
-bool format_card();                                 // initialize SD card, create expected dir structure
+bool format_card();                                     // initialize SD card, create expected dir structure
 
 
 

@@ -330,40 +330,58 @@ bool ram_bank_file_exists( uint8_t banknum, bool del ) {
 }
 
 
-void save_ram_bank( uint8_t banknum ) {
+/*
+  if banknum == 255, snapshot Z-80 RAM and save to /RAMBANKS/banknum/RAM_IMAGE_<checksum>.bin
+  if banknum == 00-99, save to /RAMBANKS/banknum/ram_fn (unless NULL, then use RAM_IMAGE_<seqnum>.bin)
+*/
+
+void store_ram_bank( uint8_t *ram_image, uint8_t banknum, char *ram_fn ) {
+
+  Serial.printf("store_ram_bank: %s\n", ram_fn );
+
+  // -- clean up any old files in this directory, bound it to 1000 files, should be more than enough
+
+  for( int xxx = 0; xxx != 1000; xxx++ ) {
+    if ( ram_bank_file_exists( banknum, true ) == false )       // the "true" means to delete if a file is found, returns false when no file found
+      break;
+  }
+
+  // -- now write the new file
+
+  if ( file = SD.open( ram_fn, (O_RDWR | O_CREAT | O_TRUNC) ) ) {
+    Serial.println("### open OK");
+
+    file.write( ram_image, 8192 );
+
+    file.close();       // this will flush anything pending to the card
+  }
+  else {
+    Serial.printf("### %s: open failed\n", ram_fn);      
+  }
+}
+
+
+// Copy active Z-80 RAM to /RAMBANKS/banknum/RAM_IMAGE_xxxx.bin, where xxxx is a checksum
+
+void copy_ram_to_sd_bank( uint8_t banknum ) {
   if( banknum < 100 ) {
-    Serial.print("Saving all of Z-80 RAM to SD Card RAMBANK "); Serial.println( banknum );
-
-    // -- clean up any old files in this directory, bound it to 1000 files, should be more than enough
-
-    for( int xxx = 0; xxx != 1000; xxx++ ) {
-      if ( ram_bank_file_exists( banknum, true ) == false )
-        break;
-    }
+    Serial.printf("Saving all of Z-80 RAM to SD Card RAMBANK %02d\n", banknum );
 
     // -- now copy the current RAM into what should be an empty RAMBANKS directory
 
     copy_z80_ram( rambuf );
 
-    build_rambank_filename( banknum, eeprom_next_rambank_num(), fn_buf );     // next monotonically increasing # for filename
-    //build_rambank_filename( banknum, checksum(rambuf, 8192), fn_buf );
+    //build_rambank_filename( banknum, eeprom_next_rambank_num(), fn_buf );     // next monotonically increasing # for filename
+    build_rambank_filename( banknum, checksum(rambuf, 8192), fn_buf );
     Serial.println( fn_buf );
-    
-    if ( file = SD.open( fn_buf, (O_RDWR | O_CREAT | O_TRUNC) ) ) {
-      Serial.println("### open OK");
 
-      file.write( rambuf, 8192 );
+    store_ram_bank( rambuf, banknum, fn_buf );
 
-      file.close();       // this will flush anything pending to the card
-    }
-    else {
-      Serial.println("### open failed");      
-    }
-
-    Serial.println("done!");
+    Serial.printf("done!\n");
   }
-  else
-    Serial.println("### RAM bank must be between 00 and 99");
+  else {
+    Serial.printf("### RAM bank must be between 00 and 99\n");
+  }
 }
 
 
@@ -443,9 +461,10 @@ void load_ram_bank( uint8_t banknum ) {
 
 char *get_ram_bank_name( uint8_t bank_num ) {             // 0xff for current active Z-80 RAM
 
-  if( bank_num == 0xff ) {                                // special case, currently active RAM
+  if( bank_num == 0xff ) {                                                    // special case, currently active RAM
     copy_z80_ram( rambuf );
-    sprintf( (char*)filebuf, "RAM_BANK_%04x", checksum(rambuf,8192));
+    if( !get_active_ram_bank_name() )                                         // big hack, if there is a filename, this copies it to filebuf, then we exit and return that
+      sprintf( (char*)filebuf, "RAM_BANK_%04x", checksum(rambuf,8192));       // otherwise, put the default filename into filebuf
   }
   else {
     sprintf( (char*)filebuf, "/RAMBANKS/%02d/", bank_num );
@@ -462,9 +481,52 @@ char *get_ram_bank_name( uint8_t bank_num ) {             // 0xff for current ac
     }
   }
 
+  Serial.printf("get_ram_bank_name: returning %s\n", filebuf);
+  
   return (char*)filebuf;
 }
 
+
+// set active RAM bank (bank 255) name
+
+void set_active_ram_bank_name( char *ram_fn ) {
+  Serial.printf("set_active_ram_bank_name: %s", ram_fn );
+
+  sprintf( (char*)filebuf, "/RAMBANKS/ACTIVE.TXT" );
+
+  if ( file = SD.open( filebuf, (O_RDWR | O_CREAT | O_TRUNC) ) ) {
+
+    file.write( ram_fn, 24 );
+
+    file.close();       // this will flush anything pending to the card  
+
+    Serial.printf(" - successful\n");
+  }
+  else
+    Serial.printf(" - FAILED\n");
+}
+
+char *get_active_ram_bank_name() {
+  char *n = 0;
+
+  Serial.printf("get_active_ram_bank_name: ");
+
+  sprintf( (char*)filebuf, "/RAMBANKS/ACTIVE.TXT" );
+
+  file = SD.open( (char*)filebuf );
+
+  if( file ) {
+    file.read( filebuf, 24 );
+    file.close();
+    Serial.printf("opened, found %s\n", filebuf);
+    n = filebuf;
+  }
+  else {
+    Serial.printf("could not open /RAMBANKS/ACTIVE.TXT, returning NULL\n");
+  }
+  
+  return n;
+}
 
 
 /* ================================================================================================================

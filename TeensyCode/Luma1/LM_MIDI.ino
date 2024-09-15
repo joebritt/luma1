@@ -1361,8 +1361,11 @@ uint8_t b7s;
 
 bool sysex_err_abort = false;
 
-void sysex_load_prologue();
-void sysex_load_epilogue();
+
+bool reboot_after_sysex = false;                                        // set to TRUE to reboot z-80 after current sysex operation
+
+void sysex_store_prologue();                                            // take / release / reboot z-80 for certain sysex messages
+void sysex_store_epilogue();
 
 
 // utilities
@@ -1539,7 +1542,7 @@ void send_pattern_RAM_sysex( uint8_t banknum ) {
   
   // -- go get it, either from SD bank # or STAGING
 
-  ram = get_ram_bank( banknum );
+  ram = get_ram_bank( banknum );                                    // if banknum == 255, return active z-80 RAM
 
   if( ram ) {                                                       // valid?
   
@@ -1588,26 +1591,46 @@ void send_pattern_RAM_sysex( uint8_t banknum ) {
 }
 
 
-void sysex_ram_load( uint8_t *se, int len ) {
+
+
+void sysex_ram_store( uint8_t *se, int len ) {
   char vname[24];
+  sx_ram_bank_hdr_t *hdr = (sx_ram_bank_hdr_t*)se;
 
-  Serial.printf("\n-- Sysex Pattern RAM Load\n");
-
-  Serial.printf("   Pattern RAM len: %d\n", len - SYSEX_HEADER_SIZE );
-  Serial.printf("   Pattern RAM name: %s\n", (char*)&se[1] );
+  Serial.printf("\n-- Sysex Pattern RAM Store\n");
   
   // --- sanity check the name
   
-  if( strlen( (char*)&sysex_decode_buf[1] ) == 0 )                                                                  // no name?
-    snprintf( vname, 24, "RAM_BANK_%04X.BIN", checksum((uint8_t*)&se[SYSEX_HEADER_SIZE],8192) );                    // default name w/checksum
+  if( strlen( hdr->name ) == 0 )                                                                        // no name?
+    snprintf( vname, 24, "RAM_BANK_%04X.BIN", checksum((uint8_t*)&se[SYSEX_HEADER_SIZE],8192) );        // default name w/checksum
   else
-    snprintf( vname, 24, "%s", (char*)&sysex_decode_buf[1] );
+    snprintf( vname, 24, "%s", hdr->name );
 
-  // --- Z-80 was halted in sysex_load_prologue(), now load new RAM
+  Serial.printf("   Pattern RAM len: %d\n", len - SYSEX_HEADER_SIZE );
+  Serial.printf("   Pattern RAM name: %s\n", hdr->name );
+  if( hdr->bank == 255 )
+    Serial.printf("   Pattern RAM bank: ACTIVE Z-80 RAM\n" );
+  else
+    Serial.printf("   Pattern RAM bank: %02d\n", hdr->bank );
 
-  load_z80_ram( (uint8_t*)&se[SYSEX_HEADER_SIZE] );
-  
-  delay( 250 );
+  // --- if bank 00-99, write to SD card. if bank == 255, write to active ram, save filename, and reboot
+
+  if( hdr->bank == 255 ) {
+    sysex_store_prologue();                                     // take the bus, pause hihat
+
+    // Z-80 is paused
+
+    load_z80_ram( (uint8_t*)&se[SYSEX_HEADER_SIZE] );           // copy the payload into the z-80 RAM
+                                                                
+    set_active_ram_bank_name( vname );                          // save the filename
+
+    reboot_after_sysex = true;                                  // this will reboot the z-80 on the way out
+
+    sysex_store_epilogue();                                     // release the bus, reboot z-80
+  }
+  else {
+    store_ram_bank( (uint8_t*)&se[SYSEX_HEADER_SIZE], hdr->bank, hdr->name );
+  }
 }
 
 
@@ -1728,11 +1751,11 @@ void send_sample_sysex( uint8_t banknum, uint8_t drum_sel ) {
 }
 
 
-void sysex_sample_load( uint8_t *se, int len ) {
+void sysex_sample_store( uint8_t *se, int len ) {
   char vname[24];
   sx_sample_bank_hdr_t *hdr = (sx_sample_bank_hdr_t*)se;
 
-  Serial.printf("-- Sysex Sample Load\n");
+  Serial.printf("-- Sysex Sample Store\n");
 
   Serial.printf("   Sample len: %d\n", len - sizeof(sx_sample_bank_hdr_t) );
   Serial.printf("   Sample name: %s\n", hdr->name );
@@ -1744,9 +1767,9 @@ void sysex_sample_load( uint8_t *se, int len ) {
   else
     snprintf( vname, 24, "%s", hdr->name );
 
-  // now load it into the hardware and/or SD card
+  // now store it into the hardware and/or SD card
 
-  sysex_load_prologue();                                                        // take the bus, pause hihat
+  sysex_store_prologue();                                                        // take the bus, pause hihat
 
   if( hdr->cmd == CMD_SAMPLE ) {                                                    // legacy cmd 0 sample?                            
     set_voice( last_drum, &sysex_decode_buf[sizeof(sx_sample_bank_hdr_t)], 
@@ -1765,9 +1788,9 @@ void sysex_sample_load( uint8_t *se, int len ) {
     }
   }
 
-  sysex_load_epilogue();                                                        // release the bus
+  sysex_store_epilogue();                                                        // release the bus
 
-  Serial.printf("-- Sysex Sample Load complete\n\n");
+  Serial.printf("-- Sysex Sample Store complete\n\n");
 }
 
 
@@ -2108,7 +2131,7 @@ void init_sysex_decoder() {
     Get ready to write it to a voice board.
 */
 
-void sysex_load_prologue() {
+void sysex_store_prologue() {
   
   teensy_drives_z80_bus( true );                      // grab the bus
 
@@ -2118,13 +2141,24 @@ void sysex_load_prologue() {
 }
 
 
-void sysex_load_epilogue() {
+void sysex_store_epilogue() {
 
   set_rst_hihat( 0 );                                 // XXX FIXME should not need to do this, getting stomped
-  
-  delay(100);
-  teensy_drives_z80_bus( false );                     // release the bus
-  delay(100);
+
+  if( reboot_after_sysex ) {
+    z80_reset( true );
+    teensy_drives_z80_bus( false );                   // we're done, let the z-80 go again
+    z80_reset( false );
+
+    delay( 250 );
+    
+    reboot_after_sysex = false;  
+  }
+  else {
+    delay(100);
+    teensy_drives_z80_bus( false );                   // just release the bus
+    delay(100);
+  }
 }
 
 
@@ -2230,9 +2264,9 @@ void mySystemExclusiveChunk(const byte *d, uint16_t len, bool last) {
         // --- sysex DOWNLOAD types
         
         case CMD_SAMPLE:
-        case CMD_SAMPLE_BANK:                   sysex_sample_load( sysex_decode_buf, sysex_decode_idx );          break;
+        case CMD_SAMPLE_BANK:                   sysex_sample_store( sysex_decode_buf, sysex_decode_idx );         break;
 
-        case CMD_RAM_BANK:                      sysex_ram_load( sysex_decode_buf, sysex_decode_idx );             break;
+        case CMD_RAM_BANK:                      sysex_ram_store( sysex_decode_buf, sysex_decode_idx );            break;
 
         case CMD_PARAM:                         sysex_param( sysex_decode_buf, sysex_decode_idx );                break;
 
