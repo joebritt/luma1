@@ -203,7 +203,7 @@ void draw_sys_display() {
     }
   
     if( fan_running() ) {
-      display.setCursor( 40, 55 );
+      display.setCursor( 55, 55 );
       display.print( fans[fan_frame] );    
       if( fan_anim_time >= FAN_ANIM_FRAME_TIME ) {
         fan_frame++; if( fan_frame > 3 ) fan_frame = 0;

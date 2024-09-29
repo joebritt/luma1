@@ -42,7 +42,7 @@ bool fan_is_on = false;
 int fan_mode = FAN_OFF;
 int last_fan_mode = 99;                           // initialize to invalid value to force first pass setting
 
-float fan_on_temp = 70;                           // 70C Teensy die temp, ambient will be cooler. Max die temp is 95C
+float fan_on_temp = 65;                           // 65C Teensy die temp, ambient will be cooler. Max die temp is 95C
 float last_temp_reading = 0;                      // can't believe I'm using floating point for something
 
 

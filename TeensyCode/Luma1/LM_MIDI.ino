@@ -28,6 +28,23 @@
 
 #include <MIDI.h>
 
+#include <USBHost_t36.h>          // access to USB MIDI devices (plugged into 2nd USB port)
+
+// Create the ports for USB devices plugged into Teensy's 2nd USB port (via hubs)
+
+USBHost usbHOST;
+USBHub hub1(usbHOST);
+USBHub hub2(usbHOST);
+USBHub hub3(usbHOST);
+USBHub hub4(usbHOST);
+
+// We assume max 3 MIDI client devices connected to the host. This is needed for controllers that present several MIDI ports
+
+MIDIDevice midiHOST01(usbHOST);
+MIDIDevice midiHOST02(usbHOST);
+MIDIDevice midiHOST03(usbHOST);
+
+
 MIDI_CREATE_INSTANCE(HardwareSerial, HW_MIDI, midiDIN);
 
 // HW_MIDI is on Serial1, which is i.MX RT1062 LPUART UART6. This is for a hack to invert the TX line (which Luma's hardware needs)
@@ -246,6 +263,16 @@ void init_midi() {
   usbMIDI.setHandleStop(            usb_myStop            );
   
   usbMIDI.setHandleSystemExclusive( usb_mySystemExclusiveChunk  );
+
+  //USB Host init
+
+  usbHOST.begin();
+  midiHOST01.setHandleNoteOn(          midiHOST01_myNoteOn           );
+  midiHOST01.setHandleNoteOff(         midiHOST01_myNoteOff          );
+  midiHOST02.setHandleNoteOn(          midiHOST01_myNoteOn           );
+  midiHOST02.setHandleNoteOff(         midiHOST01_myNoteOff          );
+  midiHOST03.setHandleNoteOn(          midiHOST01_myNoteOn           );
+  midiHOST03.setHandleNoteOff(         midiHOST01_myNoteOff          );
 }
 
 
@@ -352,6 +379,26 @@ void din_myNoteOff(byte channel, byte note, byte velocity) {
   }
 }
 
+// ======================================================================
+// usbHOST note ON/OFF handlers
+
+void midiHOST01_myNoteOn(byte channel, byte note, byte velocity) {
+    myNoteOn( channel, note, velocity );
+  //Serial.printf("USB Host data NOTE ON");  
+    usbMIDI.sendNoteOn( note, velocity, (midi_chan == 0)?1:midi_chan );
+    midiDIN.sendNoteOn( note, velocity, (midi_chan == 0)?1:midi_chan );
+    midi_din_out_event();
+    midi_usb_in_event();
+}
+
+void midiHOST01_myNoteOff(byte channel, byte note, byte velocity) {
+    myNoteOff( channel, note, velocity );
+  //Serial.printf("USB Host data NOTE OFF");  
+    usbMIDI.sendNoteOff( note, MIDI_VEL_LOUD, (midi_chan == 0)?1:midi_chan );
+    midiDIN.sendNoteOff( note, MIDI_VEL_LOUD, (midi_chan == 0)?1:midi_chan );
+    midi_din_out_event();
+    midi_usb_in_event();
+}
 
 void din_myProgramChange(byte channel, byte pgm) {
   if( get_midi_note_in_route() & ROUTE_DIN5 ) {
@@ -673,6 +720,10 @@ void handle_midi_in() {
     else
       usbMIDI.read( midi_chan );
 
+    //Check USB HOST activity
+    midiHOST01.read();
+    midiHOST02.read();
+    midiHOST03.read();
 
     // -- give some breathing time for messages to come in, while yield()'ing
 
@@ -694,6 +745,11 @@ void handle_midi_in() {
           usbMIDI.read();
         else
           usbMIDI.read( midi_chan );
+        
+        //Check USB HOST activity
+        midiHOST01.read();
+        midiHOST02.read();
+        midiHOST03.read();
       }
     }
   }
