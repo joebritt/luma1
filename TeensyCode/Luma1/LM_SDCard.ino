@@ -37,6 +37,9 @@ File file;
 
 char fn_buf[256];
 
+char sd_scratch[256];
+
+
 unsigned long filesize;
 uint8_t filebuf[32768];
 
@@ -308,9 +311,9 @@ bool ram_bank_file_exists( uint8_t banknum, bool del ) {
 
   Serial.printf("Checking for ram bank file in bank %02d\n", banknum);
 
-  sprintf( fn_buf, "/RAMBANKS/%02d/", banknum );
+  sprintf( sd_scratch, "/RAMBANKS/%02d/", banknum );
 
-  root = SD.open( fn_buf );
+  root = SD.open( sd_scratch );
   
   file = root.openNextFile();
 
@@ -320,10 +323,13 @@ bool ram_bank_file_exists( uint8_t banknum, bool del ) {
 
     if( del ) {
       Serial.printf("### DELETING that file\n");
-      sprintf( fn_buf, "/RAMBANKS/%02d/%s", banknum, file.name() );
-      Serial.printf("File to delete name = %s\n", fn_buf);
-      SD.remove( fn_buf );
+      sprintf( sd_scratch, "/RAMBANKS/%02d/%s", banknum, file.name() );
+      Serial.printf("File to delete name = %s\n", sd_scratch);
+      SD.remove( sd_scratch );
     }
+  }
+  else {
+    Serial.printf("No ram bank file found for bank %02d\n", banknum);
   }
 
   return r;
@@ -373,7 +379,7 @@ void copy_ram_to_sd_bank( uint8_t banknum ) {
 
     //build_rambank_filename( banknum, eeprom_next_rambank_num(), fn_buf );     // next monotonically increasing # for filename
     build_rambank_filename( banknum, checksum(rambuf, 8192), fn_buf );
-    Serial.println( fn_buf );
+    Serial.printf("Will save to %s\n", fn_buf);
 
     store_ram_bank( rambuf, banknum, fn_buf );
 
