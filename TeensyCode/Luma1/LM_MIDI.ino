@@ -25,6 +25,7 @@
 
 #include "LM_MIDI.h"
 #include "LM_Utilities.h"
+#include "LM_DrumTriggers.h"
 
 #include <MIDI.h>
 
@@ -939,6 +940,7 @@ void send_midi_drm( int drum_idx, byte vel ) {                            // if 
 
 
 void handle_midi_out() {
+  drum_trig_event *dte;
 
   // ===============================
   // Go see if it's time to send any Note Offs for drums that were triggered
@@ -1002,45 +1004,39 @@ void handle_midi_out() {
   // ===============================
   // see if any drums were hit, look at trigger bits captured from the i2c port expander
   
-  if( check_triggers ) {
-    /*
-    Serial.print("Trig: "); printHex2( drum_triggers_a&0x7f ); Serial.print(" / "); printHex2( drum_triggers_b&0xf0 ); 
-                                                          Serial.print(" / "); printHex2( drum_modifiers ); Serial.println();
-    */
+  while( (dte = pop_trig_event()) != NULL ) {                    // process all that have arrived
     
-    if( drum_triggers_a ) {
-      if( drum_triggers_a & 0x01 )  send_midi_drm( drum_CABASA,     (drum_modifiers & 0x02) ? MIDI_VEL_LOUD : MIDI_VEL_SOFT );
+    if( dte->trigs_a ) {
+      if( dte->trigs_a & 0x01 )  send_midi_drm( drum_CABASA,     (dte->trig_mods & 0x02) ? MIDI_VEL_LOUD : MIDI_VEL_SOFT );
         
-      if( drum_triggers_a & 0x02 )  send_midi_drm( drum_TAMB,       (drum_modifiers & 0x02) ? MIDI_VEL_LOUD : MIDI_VEL_SOFT );
+      if( dte->trigs_a & 0x02 )  send_midi_drm( drum_TAMB,       (dte->trig_mods & 0x02) ? MIDI_VEL_LOUD : MIDI_VEL_SOFT );
 
-      if( drum_triggers_a & 0x04 ) {
-        if( drum_modifiers & 0x04 ) 
-          send_midi_drm( ( drum_modifiers & 0x02 ) ? drum_CONGA_UP : drum_CONGA_DN,           MIDI_VEL_LOUD );
+      if( dte->trigs_a & 0x04 ) {
+        if( dte->trig_mods & 0x04 ) 
+          send_midi_drm( ( dte->trig_mods & 0x02 ) ? drum_CONGA_UP : drum_CONGA_DN,           MIDI_VEL_LOUD );
         else
-          send_midi_drm( ( drum_modifiers & 0x02 ) ? drum_TOM_UP : drum_TOM_DN,               MIDI_VEL_LOUD );
+          send_midi_drm( ( dte->trig_mods & 0x02 ) ? drum_TOM_UP : drum_TOM_DN,               MIDI_VEL_LOUD );
         }
       
-      if( drum_triggers_a & 0x10 )  send_midi_drm( drum_COWBELL,                              MIDI_VEL_LOUD );
+      if( dte->trigs_a & 0x10 )  send_midi_drm( drum_COWBELL,                                 MIDI_VEL_LOUD );
       
-      if( drum_triggers_a & 0x20 )  send_midi_drm( drum_CLAVE,                                MIDI_VEL_LOUD );
+      if( dte->trigs_a & 0x20 )  send_midi_drm( drum_CLAVE,                                   MIDI_VEL_LOUD );
     }
   
     
-    if( drum_triggers_b ) {
-      if( drum_triggers_b & 0x80 )  send_midi_drm( drum_CLAPS,                                MIDI_VEL_LOUD );
+    if( dte->trigs_b ) {
+      if( dte->trigs_b & 0x80 )     send_midi_drm( drum_CLAPS,                                MIDI_VEL_LOUD );
 
       // HIHAT / hihat / HIHAT SPLASH (OPEN)
-      if( drum_triggers_b & 0x10 ) {      
-        if( drum_modifiers & 0x04 ) send_midi_drm( drum_HIHAT_OPEN,                           MIDI_VEL_LOUD );
-        else                        send_midi_drm( drum_HIHAT,      (drum_modifiers & 0x02) ? MIDI_VEL_LOUD : MIDI_VEL_SOFT );
+      if( dte->trigs_b & 0x10 ) {      
+        if( dte->trig_mods & 0x04 ) send_midi_drm( drum_HIHAT_OPEN,                           MIDI_VEL_LOUD );
+        else                        send_midi_drm( drum_HIHAT,      (dte->trig_mods & 0x02) ? MIDI_VEL_LOUD : MIDI_VEL_SOFT );
       }
         
-      if( drum_triggers_b & 0x40 )  send_midi_drm( drum_BASS,                                 (drum_modifiers & 0x02) ? MIDI_VEL_LOUD : MIDI_VEL_SOFT );
+      if( dte->trigs_b & 0x40 )     send_midi_drm( drum_BASS,       (dte->trig_mods & 0x02) ? MIDI_VEL_LOUD : MIDI_VEL_SOFT );
         
-      if( drum_triggers_b & 0x20 )  send_midi_drm( drum_SNARE,      (drum_modifiers & 0x02) ? MIDI_VEL_LOUD : MIDI_VEL_SOFT );
-    }
-  
-    check_triggers = false;
+      if( dte->trigs_b & 0x20 )     send_midi_drm( drum_SNARE,      (dte->trig_mods & 0x02) ? MIDI_VEL_LOUD : MIDI_VEL_SOFT );
+    }  
   }  
 }
 

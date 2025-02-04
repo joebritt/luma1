@@ -36,8 +36,6 @@ volatile uint8_t drum_triggers_a;           // raw bits read from i2c port expan
 volatile uint8_t drum_triggers_b;
 volatile uint8_t drum_modifiers;
 
-volatile bool check_triggers = false;
-
 volatile uint8_t trig_port_a_shadow;        // for voice loading control bit outputs
 volatile uint8_t trig_port_b_shadow;
 
@@ -317,7 +315,6 @@ void enable_drum_trig_interrupt() {
     drum_triggers_a = 0;
     drum_triggers_b = 0;
     drum_modifiers = 0;
-    check_triggers = false;
     
     Wire.beginTransmission( TRIGGER_EXP_ADDR );  // set us up to read the GPIOB reg as soon as we come in next time
     Wire.write( GPIOB );
@@ -363,6 +360,37 @@ void restore_drum_trig_interrupt() {
 
 
 
+volatile drum_trig_event trig_events[16];           // circular buffer, tail is processed in main loop handle_midi_out()
+                                                    // head is updated when interrupt handler pushes a new event into the buffer
+
+#define TRIG_EVENT_BUF_MASK   0x0f                  // 16 events, increment and mask to make circular
+
+volatile int trig_events_head = 0;
+volatile int trig_events_tail = 0;
+
+void push_trig_event( uint8_t a, uint8_t b, uint8_t mods ) {
+  trig_events_head++;                               // insert new event
+  trig_events_head &= TRIG_EVENT_BUF_MASK;          // do we need to wrap?
+
+  trig_events[trig_events_head].trigs_a   = a;
+  trig_events[trig_events_head].trigs_b   = b;
+  trig_events[trig_events_head].trig_mods = mods;
+}
+
+
+drum_trig_event *pop_trig_event() {
+
+  if( trig_events_tail != trig_events_head ) {
+    trig_events_tail++;                             // we will eat the next one
+    trig_events_tail &= TRIG_EVENT_BUF_MASK;        // do we need to wrap?
+
+    return &trig_events[trig_events_tail];          // process it directly from the buffer
+  }
+  else
+    return NULL;                                    // nothing to pop
+}
+
+
 
 void exp_irq_a( void ) {  
   Wire.requestFrom( TRIGGER_EXP_ADDR, 1 );         // we left the address pointer -> GPIOB so we can grab it fast
@@ -380,7 +408,7 @@ void exp_irq_a( void ) {
 
   drum_triggers_b = 0;
   
-  check_triggers = true;
+  push_trig_event( drum_triggers_a, drum_triggers_b, drum_modifiers );
 }
 
 
@@ -400,5 +428,5 @@ void exp_irq_b( void ) {
 
   drum_triggers_a = 0;
 
-  check_triggers = true;
+  push_trig_event( drum_triggers_a, drum_triggers_b, drum_modifiers );
 }

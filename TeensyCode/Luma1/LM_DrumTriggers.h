@@ -40,4 +40,14 @@ void restore_drum_trig_interrupt();         // use with disable_drum_trig_interr
 void enable_drum_trig_interrupt( bool en ); // uses counting semaphore to allow nested en/disable
 */
 
+typedef struct {
+  uint8_t   trigs_a;  
+  uint8_t   trigs_b;  
+  uint8_t   trig_mods;
+  uint8_t   pad;
+} __attribute__((__packed__)) drum_trig_event;
+
+void push_trig_event( uint8_t a, uint8_t b, uint8_t mods );
+drum_trig_event *pop_trig_event();
+
 #endif
